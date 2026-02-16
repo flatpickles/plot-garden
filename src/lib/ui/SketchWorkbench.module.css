@@ -80,11 +80,16 @@
 }
 
 .controlPanelContent {
+  position: relative;
+  top: 0;
   opacity: 1;
-  transition: opacity 110ms ease;
+  transition:
+    opacity 110ms ease,
+    top 110ms ease;
 }
 
 .controlPanelContentHidden {
+  top: 6px;
   opacity: 0;
   pointer-events: none;
 }
