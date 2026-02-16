@@ -12,3 +12,8 @@ command = '''
 pnpm install
 pnpm run dev
 '''
+
+[[actions]]
+name = "Pull"
+icon = "tool"
+command = "git pull"
