@@ -47,8 +47,14 @@ pnpm test                # vitest unit/component tests
 pnpm test:e2e            # playwright smoke test against local server
 pnpm sketch:new <slug>   # scaffold a new sketch
 pnpm sketches:sync       # regenerate src/generated/sketch-registry.ts
-pnpm sketches:thumbnails # regenerate sketch thumbnails
+pnpm sketches:thumbnails # manually regenerate committed sketch thumbnails (not used in current UI)
 ```
+
+## Thumbnail status
+
+- Thumbnails are currently a content artifact only; the app does not render them in the UX yet.
+- `pnpm sketches:thumbnails` is an opt-in maintenance script and is not run by `pnpm dev` or `pnpm build`.
+- `thumbnail.png` files are still scaffolded and kept in each sketch folder for possible future UI use.
 
 ## Sketch structure
 

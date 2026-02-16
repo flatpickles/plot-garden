@@ -61,8 +61,14 @@ Fields:
 - `description`: short description
 - `tags`: string array
 - `order`: integer for list ordering
-- `thumbnail`: usually `thumbnail.png`
+- `thumbnail`: usually `thumbnail.png` (currently metadata only; not rendered in the app UX)
 - `className`: TS class filename/export name
+
+Thumbnail notes:
+
+- `pnpm sketches:thumbnails` regenerates thumbnail files manually.
+- Thumbnail generation is not part of `pnpm dev` or `pnpm build`.
+- Keeping `thumbnail.png` in each sketch folder is recommended for future UI support.
 
 ## New sketch scaffolding
 
