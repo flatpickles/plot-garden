@@ -512,7 +512,7 @@ export function SketchWorkbench({
   );
 
   const onPanelResizePointerDown = useCallback(
-    (event: PointerEvent) => {
+    (event: React.PointerEvent<HTMLDivElement>) => {
       const shell = shellRef.current;
       if (!shell) return;
 
