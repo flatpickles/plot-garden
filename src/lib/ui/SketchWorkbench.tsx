@@ -63,8 +63,8 @@ export function SketchWorkbench({
 }) {
   const router = useRouter();
 
-  const directPlottingAvailable = supportsDirectPlotting();
-  const serialAvailable = supportsWebSerial();
+  const [directPlottingAvailable, setDirectPlottingAvailable] = useState(false);
+  const [serialAvailable, setSerialAvailable] = useState(false);
 
   const [selectedSlug, setSelectedSlug] = useState(initialSlug);
   const [searchTerm, setSearchTerm] = useState("");
@@ -107,6 +107,11 @@ export function SketchWorkbench({
   const [plotterStatus, setPlotterStatus] = useState<PlotterStatus>(
     transportRef.current.getStatus(),
   );
+
+  useEffect(() => {
+    setDirectPlottingAvailable(supportsDirectPlotting());
+    setSerialAvailable(supportsWebSerial());
+  }, []);
 
   useEffect(() => {
     setSelectedSlug(initialSlug);
