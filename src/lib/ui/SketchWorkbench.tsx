@@ -28,6 +28,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { CircleHelp, Settings, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { sketchRegistry } from "@/generated/sketch-registry";
@@ -84,6 +85,7 @@ const SECTION_DROP_FADE_MS = 220;
 const SECTION_ACTIVE_FADE_IN_MS = 120;
 const SECTION_DROP_ANIMATION_MS = SECTION_DROP_TRAVEL_MS + SECTION_DROP_FADE_MS;
 const SECTION_REAL_FADE_COMPLETE_MS = SECTION_DROP_TRAVEL_MS + SECTION_ACTIVE_FADE_IN_MS;
+const CONTROL_PANEL_FADE_MS = 110;
 
 function plotterConfigEqual(a?: PlotterConfig, b?: PlotterConfig): boolean {
   if (!a || !b) return false;
@@ -193,6 +195,8 @@ type SidebarSection = {
   title: string;
   body: ReactNode;
 };
+
+type ControlPanelView = "default" | "help" | "settings";
 
 function SectionCollapseCaret({
   collapsed,
@@ -451,6 +455,11 @@ export function SketchWorkbench({
   const landingResetTimeoutRef = useRef<number | null>(null);
   const [plotterControlsMounted, setPlotterControlsMounted] = useState(false);
   const [plotterControlsCollapsed, setPlotterControlsCollapsed] = useState(true);
+  const [controlPanelView, setControlPanelView] = useState<ControlPanelView>("default");
+  const [renderedControlPanelView, setRenderedControlPanelView] =
+    useState<ControlPanelView>("default");
+  const [controlPanelContentVisible, setControlPanelContentVisible] = useState(true);
+  const controlPanelSwapTimeoutRef = useRef<number | null>(null);
 
   const clearLandingTimers = useCallback(() => {
     if (landingRevealTimeoutRef.current !== null) {
@@ -470,12 +479,50 @@ export function SketchWorkbench({
     }
   }, []);
 
+  const clearControlPanelSwapTimer = useCallback(() => {
+    if (controlPanelSwapTimeoutRef.current !== null) {
+      window.clearTimeout(controlPanelSwapTimeoutRef.current);
+      controlPanelSwapTimeoutRef.current = null;
+    }
+  }, []);
+
+  const transitionControlPanelView = useCallback(
+    (nextView: ControlPanelView) => {
+      clearControlPanelSwapTimer();
+      setControlPanelContentVisible(false);
+
+      controlPanelSwapTimeoutRef.current = window.setTimeout(() => {
+        setRenderedControlPanelView(nextView);
+        controlPanelSwapTimeoutRef.current = null;
+        window.requestAnimationFrame(() => {
+          setControlPanelContentVisible(true);
+        });
+      }, CONTROL_PANEL_FADE_MS);
+    },
+    [clearControlPanelSwapTimer],
+  );
+
+  const onControlPanelIconClick = useCallback(
+    (nextView: Exclude<ControlPanelView, "default">) => {
+      setControlPanelView((current) => {
+        const resolvedView: ControlPanelView = current === nextView ? "default" : nextView;
+        transitionControlPanelView(resolvedView);
+        return resolvedView;
+      });
+    },
+    [transitionControlPanelView],
+  );
+
   const clampPanelWidth = useCallback((nextWidth: number) => {
     const shell = shellRef.current;
     if (!shell) return Math.max(1, Math.round(nextWidth));
 
+    if (shell.clientWidth <= 0) {
+      return Math.max(1, Math.round(nextWidth));
+    }
+
     const maxWidth = Math.max(0, Math.floor(shell.clientWidth / 2));
-    if (maxWidth === 0) return 0;
+    if (maxWidth === 0) return Math.max(1, Math.round(nextWidth));
 
     const minimumWidth = Math.min(MIN_PANEL_SECTION_WIDTH, maxWidth);
     const normalized = Math.round(nextWidth);
@@ -616,6 +663,10 @@ export function SketchWorkbench({
   useEffect(() => {
     return () => clearPlotterControlsHideTimer();
   }, [clearPlotterControlsHideTimer]);
+
+  useEffect(() => {
+    return () => clearControlPanelSwapTimer();
+  }, [clearControlPanelSwapTimer]);
 
   const performRender = useCallback(
     async (
@@ -910,6 +961,12 @@ export function SketchWorkbench({
       ...current,
       [sectionId]: !current[sectionId],
     }));
+  };
+
+  const onResetPanelLayout = () => {
+    setPanelSectionOrder(DEFAULT_PANEL_SECTION_ORDER);
+    setCollapsedSections(DEFAULT_PANEL_SECTION_COLLAPSED);
+    setSidebarWidth(clampPanelWidth(DEFAULT_PANEL_SECTION_WIDTH));
   };
 
   const onSectionDragStart = (event: DragStartEvent) => {
@@ -1440,58 +1497,142 @@ export function SketchWorkbench({
     },
   };
 
+  const helpOpen = controlPanelView === "help";
+  const settingsOpen = controlPanelView === "settings";
+  const controlPanelBody =
+    renderedControlPanelView === "default" ? (
+      <DndContext
+        id="panel-sections-dnd"
+        modifiers={[restrictSectionDragToVerticalAxis]}
+        collisionDetection={closestCenter}
+        onDragCancel={onSectionDragCancel}
+        onDragEnd={onSectionDragEnd}
+        onDragStart={onSectionDragStart}
+        sensors={sectionSensors}
+      >
+        <SortableContext items={panelSectionOrder} strategy={verticalListSortingStrategy}>
+          {panelSectionOrder.map((sectionId) => {
+            const section = sidebarSections[sectionId];
+            return (
+              <SortablePanelSection
+                collapsed={collapsedSections[sectionId]}
+                draggingSource={draggingSectionId === sectionId}
+                key={sectionId}
+                landingPhase={
+                  landingSection && landingSection.id === sectionId ? landingSection.phase : null
+                }
+                onToggleSection={onToggleSection}
+                section={{
+                  id: sectionId,
+                  title: section.title,
+                  body: section.body,
+                }}
+              />
+            );
+          })}
+        </SortableContext>
+        <DragOverlay adjustScale={false} dropAnimation={SECTION_DROP_ANIMATION}>
+          {draggingSectionId ? (
+            <SectionDragOverlay
+              collapsed={collapsedSections[draggingSectionId]}
+              section={{
+                id: draggingSectionId,
+                title: sidebarSections[draggingSectionId].title,
+                body: sidebarSections[draggingSectionId].body,
+              }}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    ) : renderedControlPanelView === "help" ? (
+      <div className={styles.controlPanelStack}>
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h3 className={styles.sectionTitle}>Quick Help</h3>
+          </div>
+          <div className={styles.sectionBodyContainer}>
+            <div className={styles.sectionBodyContainerInner}>
+              <div className={styles.sectionBody}>
+                <p className={styles.status}>
+                  Configure sketches in this panel, then render and send plots from the Plotter
+                  section.
+                </p>
+                <ul className={styles.controlPanelInfoList}>
+                  <li>Drag section edges to reorder cards.</li>
+                  <li>Use manual render mode when tweaking lots of parameters.</li>
+                  <li>Hover a layer to isolate it in the preview.</li>
+                  <li>Connect your AxiDraw before starting a plot session.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    ) : (
+      <div className={styles.controlPanelStack}>
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h3 className={styles.sectionTitle}>Panel Settings</h3>
+          </div>
+          <div className={styles.sectionBodyContainer}>
+            <div className={styles.sectionBodyContainerInner}>
+              <div className={styles.sectionBody}>
+                <p className={styles.status}>
+                  Reset section order, collapsed state, and sidebar width back to defaults.
+                </p>
+                <div className={styles.controlsRow}>
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={onResetPanelLayout}
+                    type="button"
+                  >
+                    Reset panel layout
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+
   return (
     <div className={styles.shell} ref={shellRef} style={shellStyle}>
       <aside className={styles.sidebar}>
-        <h2 className={styles.controlPanelTitle}>Plot Garden</h2>
-        <DndContext
-          id="panel-sections-dnd"
-          modifiers={[restrictSectionDragToVerticalAxis]}
-          collisionDetection={closestCenter}
-          onDragCancel={onSectionDragCancel}
-          onDragEnd={onSectionDragEnd}
-          onDragStart={onSectionDragStart}
-          sensors={sectionSensors}
+        <div className={styles.controlPanelHeader}>
+          <h2 className={styles.controlPanelTitle}>Plot Garden</h2>
+          <div className={styles.controlPanelActions}>
+            <button
+              className={`${styles.controlPanelIconButton} ${
+                helpOpen ? styles.controlPanelIconButtonActive : ""
+              }`}
+              aria-label={helpOpen ? "Close help panel" : "Open help panel"}
+              aria-pressed={helpOpen}
+              onClick={() => onControlPanelIconClick("help")}
+              type="button"
+            >
+              {helpOpen ? <X size={18} strokeWidth={2} /> : <CircleHelp size={18} strokeWidth={2} />}
+            </button>
+            <button
+              className={`${styles.controlPanelIconButton} ${
+                settingsOpen ? styles.controlPanelIconButtonActive : ""
+              }`}
+              aria-label={settingsOpen ? "Close panel settings" : "Open panel settings"}
+              aria-pressed={settingsOpen}
+              onClick={() => onControlPanelIconClick("settings")}
+              type="button"
+            >
+              {settingsOpen ? <X size={18} strokeWidth={2} /> : <Settings size={18} strokeWidth={2} />}
+            </button>
+          </div>
+        </div>
+        <div
+          className={`${styles.controlPanelContent} ${
+            controlPanelContentVisible ? "" : styles.controlPanelContentHidden
+          }`}
         >
-          <SortableContext
-            items={panelSectionOrder}
-            strategy={verticalListSortingStrategy}
-          >
-            {panelSectionOrder.map((sectionId) => {
-              const section = sidebarSections[sectionId];
-              return (
-                <SortablePanelSection
-                  collapsed={collapsedSections[sectionId]}
-                  draggingSource={draggingSectionId === sectionId}
-                  key={sectionId}
-                  landingPhase={
-                    landingSection && landingSection.id === sectionId
-                      ? landingSection.phase
-                      : null
-                  }
-                  onToggleSection={onToggleSection}
-                  section={{
-                    id: sectionId,
-                    title: section.title,
-                    body: section.body,
-                  }}
-                />
-              );
-            })}
-          </SortableContext>
-          <DragOverlay adjustScale={false} dropAnimation={SECTION_DROP_ANIMATION}>
-            {draggingSectionId ? (
-              <SectionDragOverlay
-                collapsed={collapsedSections[draggingSectionId]}
-                section={{
-                  id: draggingSectionId,
-                  title: sidebarSections[draggingSectionId].title,
-                  body: sidebarSections[draggingSectionId].body,
-                }}
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+          {controlPanelBody}
+        </div>
       </aside>
 
       <div

@@ -62,6 +62,7 @@ describe("SketchWorkbench", () => {
       const parsed = JSON.parse(raw ?? "{}") as {
         order?: string[];
         collapsed?: Record<string, boolean>;
+        sidebarWidth?: number;
       };
       expect(parsed.order).toEqual([
         "sketches",
