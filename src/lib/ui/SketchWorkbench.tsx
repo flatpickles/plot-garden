@@ -77,7 +77,7 @@ import {
 
 import styles from "./SketchWorkbench.module.css";
 
-const PLOTTER_CONFIG_STORAGE_KEY = "vibe-plotter.plotter-config";
+const PLOTTER_CONFIG_STORAGE_KEY = "plot-garden.plotter-config";
 const MIN_PANEL_SECTION_WIDTH = 280;
 const SECTION_DROP_TRAVEL_MS = 280;
 const SECTION_DROP_FADE_MS = 220;

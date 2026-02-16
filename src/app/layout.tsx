@@ -15,7 +15,7 @@ const monoFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vibe Plotter",
+  title: "Plot Garden",
   description: "Pen plotter sketchbook for SVG-first generative art.",
 };
 

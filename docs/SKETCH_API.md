@@ -4,7 +4,7 @@
 
 All sketches extend `PlotterSketch` from:
 
-`/Users/matt/dev/vibe-plotter/src/lib/sketch-core/PlotterSketch.ts`
+`/Users/matt/dev/plot-garden/src/lib/sketch-core/PlotterSketch.ts`
 
 Required pieces:
 
@@ -53,7 +53,7 @@ Recommended for deterministic layer naming:
 
 Validated by `zod` in:
 
-`/Users/matt/dev/vibe-plotter/src/lib/sketch-core/manifestSchema.ts`
+`/Users/matt/dev/plot-garden/src/lib/sketch-core/manifestSchema.ts`
 
 Fields:
 
@@ -75,8 +75,8 @@ pnpm sketch:new my-new-sketch
 
 This creates:
 
-- `/Users/matt/dev/vibe-plotter/src/sketches/my-new-sketch/MyNewSketch.ts`
-- `/Users/matt/dev/vibe-plotter/src/sketches/my-new-sketch/sketch.json`
-- `/Users/matt/dev/vibe-plotter/src/sketches/my-new-sketch/thumbnail.png`
+- `/Users/matt/dev/plot-garden/src/sketches/my-new-sketch/MyNewSketch.ts`
+- `/Users/matt/dev/plot-garden/src/sketches/my-new-sketch/sketch.json`
+- `/Users/matt/dev/plot-garden/src/sketches/my-new-sketch/thumbnail.png`
 
 It also refreshes the registry.

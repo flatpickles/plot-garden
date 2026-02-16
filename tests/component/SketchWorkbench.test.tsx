@@ -56,7 +56,7 @@ describe("SketchWorkbench", () => {
     );
 
     await waitFor(() => {
-      const raw = window.localStorage.getItem("vibe-plotter.panel-section-preferences");
+      const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
       expect(raw).toBeTruthy();
 
       const parsed = JSON.parse(raw ?? "{}") as {

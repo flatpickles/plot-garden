@@ -11,8 +11,8 @@ export type PanelSectionPreferences = {
   sidebarWidth: number;
 };
 
-export const PANEL_SECTION_PREFS_STORAGE_KEY = "vibe-plotter.panel-section-preferences";
-export const PANEL_SECTION_PREFS_COOKIE_KEY = "vibe-plotter.panel-section-preferences";
+export const PANEL_SECTION_PREFS_STORAGE_KEY = "plot-garden.panel-section-preferences";
+export const PANEL_SECTION_PREFS_COOKIE_KEY = "plot-garden.panel-section-preferences";
 export const DEFAULT_PANEL_SECTION_WIDTH = 340;
 
 export const DEFAULT_PANEL_SECTION_ORDER: PanelSectionId[] = [

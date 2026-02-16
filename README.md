@@ -1,4 +1,4 @@
-# Vibe Plotter
+# Plot Garden
 
 A Next.js + pnpm sketchbook for pen plotter art.
 
