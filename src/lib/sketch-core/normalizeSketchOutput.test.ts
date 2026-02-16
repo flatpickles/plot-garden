@@ -59,7 +59,7 @@ describe("normalizeSketchOutput", () => {
     expect(normalized.layers[0]?.name).toContain("Layer");
 
     const svg = renderNormalizedDocumentToSvg(normalized, {
-      hoveredLayerId: normalized.layers[0]?.id,
+      hoveredLayerId: normalized.layers[0]?.id ?? null,
     });
     expect(svg).toContain("<svg");
   });

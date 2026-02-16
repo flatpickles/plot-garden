@@ -188,6 +188,18 @@ export function SketchWorkbench({
     });
   }, [hoveredLayerId, normalizedDocument]);
 
+  const canvasAspectRatio = useMemo(() => {
+    const width =
+      Number.isFinite(draftContext.width) && draftContext.width > 0
+        ? draftContext.width
+        : DEFAULT_CONTEXT.width;
+    const height =
+      Number.isFinite(draftContext.height) && draftContext.height > 0
+        ? draftContext.height
+        : DEFAULT_CONTEXT.height;
+    return width / height;
+  }, [draftContext.height, draftContext.width]);
+
   const filteredSketches = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
     if (!needle) return sketchRegistry;
@@ -757,7 +769,7 @@ export function SketchWorkbench({
           <p className={styles.muted}>/{selectedEntry.manifest.slug}</p>
         </header>
 
-        <div className={styles.canvasWrap}>
+        <div className={styles.canvasWrap} style={{ aspectRatio: canvasAspectRatio }}>
           {previewSvgMarkup ? (
             <div
               className={styles.previewSvg}
