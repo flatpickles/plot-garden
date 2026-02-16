@@ -537,6 +537,14 @@ export function SketchWorkbench({
     return width / height;
   }, [draftContext.height, draftContext.width]);
 
+  const canvasWrapStyle = useMemo<CSSProperties>(
+    () =>
+      ({
+        "--canvas-aspect": String(canvasAspectRatio),
+      }) as CSSProperties,
+    [canvasAspectRatio],
+  );
+
   const filteredSketches = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
     if (!needle) return sketchRegistry;
@@ -1239,13 +1247,15 @@ export function SketchWorkbench({
           <p className={styles.muted}>/{selectedEntry.manifest.slug}</p>
         </header>
 
-        <div className={styles.canvasWrap} style={{ aspectRatio: canvasAspectRatio }}>
-          {previewSvgMarkup ? (
-            <div
-              className={styles.previewSvg}
-              dangerouslySetInnerHTML={{ __html: previewSvgMarkup }}
-            />
-          ) : null}
+        <div className={styles.canvasViewport}>
+          <div className={styles.canvasWrap} style={canvasWrapStyle}>
+            {previewSvgMarkup ? (
+              <div
+                className={styles.previewSvg}
+                dangerouslySetInnerHTML={{ __html: previewSvgMarkup }}
+              />
+            ) : null}
+          </div>
         </div>
 
         {jobPlan ? (
