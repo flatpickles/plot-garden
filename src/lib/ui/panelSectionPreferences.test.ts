@@ -13,10 +13,9 @@ describe("panelSectionPreferences cookie helpers", () => {
     const encoded = serializePanelSectionPreferencesCookie({
       modes: {
         default: {
-          order: ["plotter", "sketches", "renderControls", "params", "layers"],
+          order: ["plotter", "sketches", "params", "layers"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
-            renderControls: true,
             layers: true,
             plotter: true,
           },
@@ -30,9 +29,10 @@ describe("panelSectionPreferences cookie helpers", () => {
           },
         },
         settings: {
-          order: ["panelSettings"],
+          order: ["renderControls", "panelSettings"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            renderControls: true,
             panelSettings: true,
           },
         },
@@ -43,10 +43,9 @@ describe("panelSectionPreferences cookie helpers", () => {
     expect(parsePanelSectionPreferencesCookie(encoded)).toEqual({
       modes: {
         default: {
-          order: ["plotter", "sketches", "renderControls", "params", "layers"],
+          order: ["plotter", "sketches", "params", "layers"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
-            renderControls: true,
             layers: true,
             plotter: true,
           },
@@ -60,9 +59,10 @@ describe("panelSectionPreferences cookie helpers", () => {
           },
         },
         settings: {
-          order: ["panelSettings"],
+          order: ["renderControls", "panelSettings"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            renderControls: true,
             panelSettings: true,
           },
         },
@@ -85,7 +85,7 @@ describe("panelSectionPreferences cookie helpers", () => {
     expect(parsePanelSectionPreferencesCookie(encoded)).toEqual({
       modes: {
         default: {
-          order: ["layers", "plotter", "sketches", "renderControls", "params"],
+          order: ["layers", "plotter", "sketches", "params"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
             layers: true,
@@ -93,6 +93,36 @@ describe("panelSectionPreferences cookie helpers", () => {
         },
         help: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.help,
         settings: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.settings,
+      },
+      sidebarWidth: DEFAULT_PANEL_SECTION_WIDTH,
+    });
+  });
+
+  it("migrates legacy settings layout to put render controls first", () => {
+    const encoded = encodeURIComponent(
+      JSON.stringify({
+        modes: {
+          settings: {
+            order: ["panelSettings"],
+            collapsed: {
+              panelSettings: true,
+            },
+          },
+        },
+      }),
+    );
+
+    expect(parsePanelSectionPreferencesCookie(encoded)).toEqual({
+      modes: {
+        default: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.default,
+        help: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.help,
+        settings: {
+          order: ["renderControls", "panelSettings"],
+          collapsed: {
+            ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            panelSettings: true,
+          },
+        },
       },
       sidebarWidth: DEFAULT_PANEL_SECTION_WIDTH,
     });

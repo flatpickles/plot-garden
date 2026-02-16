@@ -1101,133 +1101,6 @@ export function SketchWorkbench({
         </>
       ),
     },
-    renderControls: {
-      title: "Render Controls",
-      body: (
-        <>
-          <div className={styles.row}>
-            <label>
-              <span className={styles.label}>Width ({draftContext.units})</span>
-              <input
-                className={styles.numberInput}
-                type="number"
-                aria-label="Canvas width"
-                min={0.5}
-                step={0.1}
-                value={draftContext.width}
-                onChange={(event) =>
-                  setDraftContext((current) => ({
-                    ...current,
-                    width: Number(event.target.value),
-                  }))
-                }
-              />
-            </label>
-            <label>
-              <span className={styles.label}>Height ({draftContext.units})</span>
-              <input
-                className={styles.numberInput}
-                type="number"
-                aria-label="Canvas height"
-                min={0.5}
-                step={0.1}
-                value={draftContext.height}
-                onChange={(event) =>
-                  setDraftContext((current) => ({
-                    ...current,
-                    height: Number(event.target.value),
-                  }))
-                }
-              />
-            </label>
-          </div>
-
-          <div className={styles.row}>
-            <label>
-              <span className={styles.label}>Units</span>
-              <select
-                className={styles.selectInput}
-                aria-label="Canvas units"
-                value={draftContext.units}
-                onChange={(event) =>
-                  setDraftContext((current) => ({
-                    ...current,
-                    units: event.target.value as Unit,
-                  }))
-                }
-              >
-                <option value="in">Inches</option>
-                <option value="mm">Millimeters</option>
-              </select>
-            </label>
-            <label>
-              <span className={styles.label}>Seed</span>
-              <input
-                className={styles.numberInput}
-                type="number"
-                aria-label="Global seed"
-                min={0}
-                step={1}
-                value={draftContext.seed}
-                onChange={(event) =>
-                  setDraftContext((current) => ({
-                    ...current,
-                    seed: Number(event.target.value),
-                  }))
-                }
-              />
-            </label>
-          </div>
-
-          <div className={styles.row}>
-            <label>
-              <span className={styles.label}>Render Mode</span>
-              <select
-                className={styles.selectInput}
-                aria-label="Render mode"
-                value={renderMode}
-                onChange={(event) =>
-                  setRenderMode(event.target.value as "live" | "manual")
-                }
-              >
-                <option value="live">Live</option>
-                <option value="manual">Manual</option>
-              </select>
-            </label>
-            <div>
-              <span className={styles.label}>Render</span>
-              {renderMode === "manual" ? (
-                <button
-                  className={styles.renderButton}
-                  disabled={rendering || !dirty}
-                  onClick={onRenderClick}
-                  type="button"
-                >
-                  {renderButtonLabel}
-                </button>
-              ) : (
-                <button className={styles.renderButton} disabled type="button">
-                  Live
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className={styles.controlsRow}>
-            <button
-              className={styles.secondaryButton}
-              onClick={onDownloadSvg}
-              type="button"
-              disabled={!normalizedDocument}
-            >
-              Download SVG
-            </button>
-          </div>
-
-          {renderError ? <p className={styles.status}>Render error: {renderError}</p> : null}
-        </>
-      ),
-    },
     params: {
       title: `${selectedEntry.manifest.title} Params`,
       body: (
@@ -1582,6 +1455,133 @@ export function SketchWorkbench({
   const settingsSidebarSections: Partial<
     Record<PanelSectionId, { title: string; body: ReactNode }>
   > = {
+    renderControls: {
+      title: "Render Controls",
+      body: (
+        <>
+          <div className={styles.row}>
+            <label>
+              <span className={styles.label}>Width ({draftContext.units})</span>
+              <input
+                className={styles.numberInput}
+                type="number"
+                aria-label="Canvas width"
+                min={0.5}
+                step={0.1}
+                value={draftContext.width}
+                onChange={(event) =>
+                  setDraftContext((current) => ({
+                    ...current,
+                    width: Number(event.target.value),
+                  }))
+                }
+              />
+            </label>
+            <label>
+              <span className={styles.label}>Height ({draftContext.units})</span>
+              <input
+                className={styles.numberInput}
+                type="number"
+                aria-label="Canvas height"
+                min={0.5}
+                step={0.1}
+                value={draftContext.height}
+                onChange={(event) =>
+                  setDraftContext((current) => ({
+                    ...current,
+                    height: Number(event.target.value),
+                  }))
+                }
+              />
+            </label>
+          </div>
+
+          <div className={styles.row}>
+            <label>
+              <span className={styles.label}>Units</span>
+              <select
+                className={styles.selectInput}
+                aria-label="Canvas units"
+                value={draftContext.units}
+                onChange={(event) =>
+                  setDraftContext((current) => ({
+                    ...current,
+                    units: event.target.value as Unit,
+                  }))
+                }
+              >
+                <option value="in">Inches</option>
+                <option value="mm">Millimeters</option>
+              </select>
+            </label>
+            <label>
+              <span className={styles.label}>Seed</span>
+              <input
+                className={styles.numberInput}
+                type="number"
+                aria-label="Global seed"
+                min={0}
+                step={1}
+                value={draftContext.seed}
+                onChange={(event) =>
+                  setDraftContext((current) => ({
+                    ...current,
+                    seed: Number(event.target.value),
+                  }))
+                }
+              />
+            </label>
+          </div>
+
+          <div className={styles.row}>
+            <label>
+              <span className={styles.label}>Render Mode</span>
+              <select
+                className={styles.selectInput}
+                aria-label="Render mode"
+                value={renderMode}
+                onChange={(event) =>
+                  setRenderMode(event.target.value as "live" | "manual")
+                }
+              >
+                <option value="live">Live</option>
+                <option value="manual">Manual</option>
+              </select>
+            </label>
+            <div>
+              <span className={styles.label}>Render</span>
+              {renderMode === "manual" ? (
+                <button
+                  className={styles.renderButton}
+                  disabled={rendering || !dirty}
+                  onClick={onRenderClick}
+                  type="button"
+                >
+                  {renderButtonLabel}
+                </button>
+              ) : (
+                <button className={styles.renderButton} disabled type="button">
+                  Live
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.controlsRow}>
+            <button
+              className={styles.secondaryButton}
+              onClick={onDownloadSvg}
+              type="button"
+              disabled={!normalizedDocument}
+            >
+              Download SVG
+            </button>
+          </div>
+
+          {renderError ? <p className={styles.status}>Render error: {renderError}</p> : null}
+        </>
+      ),
+    },
     panelSettings: {
       title: "Reset Plot Garden",
       body: (

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_HELP_SECTION_ORDER,
+  DEFAULT_SETTINGS_SECTION_ORDER,
   DEFAULT_PANEL_SECTION_WIDTH,
 } from "@/lib/ui/panelSectionPreferences";
 import { SketchWorkbench } from "@/lib/ui/SketchWorkbench";
@@ -33,18 +34,17 @@ describe("SketchWorkbench", () => {
   it("supports manual render dirty flow", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
 
-    const modeSelect = (await screen.findAllByLabelText("Render mode"))[0];
-    if (!modeSelect) throw new Error("Render mode select not found");
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+    const modeSelect = await screen.findByLabelText("Render mode");
     fireEvent.change(modeSelect, { target: { value: "manual" } });
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Rendered" })).toBeDisabled();
     });
 
-    const insetInput = screen.getAllByLabelText("Inset")[0];
-    if (!insetInput) throw new Error("Inset input not found");
-    fireEvent.change(insetInput, {
-      target: { value: "1.4" },
+    const seedInput = screen.getByLabelText("Global seed");
+    fireEvent.change(seedInput, {
+      target: { value: "2" },
     });
 
     await waitFor(() => {
@@ -54,9 +54,7 @@ describe("SketchWorkbench", () => {
 
   it("persists panel section state to localStorage", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Collapse Render Controls section" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Collapse Layers section" }));
 
     await waitFor(() => {
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
@@ -81,14 +79,13 @@ describe("SketchWorkbench", () => {
       };
       expect(parsed.modes?.default?.order).toEqual([
         "sketches",
-        "renderControls",
         "params",
         "layers",
         "plotter",
       ]);
-      expect(parsed.modes?.default?.collapsed?.renderControls).toBe(true);
+      expect(parsed.modes?.default?.collapsed?.layers).toBe(true);
       expect(parsed.modes?.help?.order).toEqual(DEFAULT_HELP_SECTION_ORDER);
-      expect(parsed.modes?.settings?.order).toEqual(["panelSettings"]);
+      expect(parsed.modes?.settings?.order).toEqual(DEFAULT_SETTINGS_SECTION_ORDER);
       expect(parsed.sidebarWidth).toBe(DEFAULT_PANEL_SECTION_WIDTH);
     });
   });
@@ -98,7 +95,7 @@ describe("SketchWorkbench", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Collapse Reset Plot Garden section" }),
+      await screen.findByRole("button", { name: "Collapse Render Controls section" }),
     );
 
     await waitFor(() => {
@@ -112,13 +109,14 @@ describe("SketchWorkbench", () => {
           };
         };
       };
-      expect(parsed.modes?.settings?.collapsed?.panelSettings).toBe(true);
+      expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     });
   });
 
   it("requires a confirmation click before resetting panel layout", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
     fireEvent.click(
       await screen.findByRole("button", { name: "Collapse Render Controls section" }),
     );
@@ -129,15 +127,14 @@ describe("SketchWorkbench", () => {
 
       const parsed = JSON.parse(raw ?? "{}") as {
         modes?: {
-          default?: {
+          settings?: {
             collapsed?: Record<string, boolean>;
           };
         };
       };
-      expect(parsed.modes?.default?.collapsed?.renderControls).toBe(true);
+      expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
     fireEvent.click(await screen.findByText("Reset Plot Garden", { selector: "button" }));
     expect(screen.getByText("Reset Plot Garden", { selector: "button" })).toBeInTheDocument();
 
@@ -146,12 +143,12 @@ describe("SketchWorkbench", () => {
       expect(raw).toBeTruthy();
       const parsed = JSON.parse(raw ?? "{}") as {
         modes?: {
-          default?: {
+          settings?: {
             collapsed?: Record<string, boolean>;
           };
         };
       };
-      expect(parsed.modes?.default?.collapsed?.renderControls).toBe(true);
+      expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     }
 
     fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
@@ -164,12 +161,12 @@ describe("SketchWorkbench", () => {
 
       const parsed = JSON.parse(raw ?? "{}") as {
         modes?: {
-          default?: {
+          settings?: {
             collapsed?: Record<string, boolean>;
           };
         };
       };
-      expect(parsed.modes?.default?.collapsed?.renderControls).toBe(false);
+      expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(false);
     });
   });
 });

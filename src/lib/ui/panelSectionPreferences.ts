@@ -26,13 +26,15 @@ export const DEFAULT_PANEL_SECTION_WIDTH = 340;
 
 export const DEFAULT_PANEL_SECTION_ORDER: PanelSectionId[] = [
   "sketches",
-  "renderControls",
   "params",
   "layers",
   "plotter",
 ];
 export const DEFAULT_HELP_SECTION_ORDER: PanelSectionId[] = ["aboutPlotGarden", "helpOverview"];
-export const DEFAULT_SETTINGS_SECTION_ORDER: PanelSectionId[] = ["panelSettings"];
+export const DEFAULT_SETTINGS_SECTION_ORDER: PanelSectionId[] = [
+  "renderControls",
+  "panelSettings",
+];
 
 export const PANEL_SECTION_ORDER_BY_VIEW: Record<ControlPanelView, PanelSectionId[]> = {
   default: DEFAULT_PANEL_SECTION_ORDER,
@@ -117,6 +119,12 @@ export function sanitizePanelSectionOrder(
   if (view === "help" && !seen.has("aboutPlotGarden")) {
     seen.add("aboutPlotGarden");
     next.unshift("aboutPlotGarden");
+  }
+  // Migrate legacy settings layouts (saved before Render Controls moved here)
+  // to show Render Controls first.
+  if (view === "settings" && !seen.has("renderControls")) {
+    seen.add("renderControls");
+    next.unshift("renderControls");
   }
 
   for (const id of defaults) {
