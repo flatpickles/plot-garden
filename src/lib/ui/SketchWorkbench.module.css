@@ -1,0 +1,270 @@
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(255, 198, 134, 0.25), transparent 45%),
+    radial-gradient(circle at 80% 20%, rgba(255, 234, 201, 0.4), transparent 50%),
+    linear-gradient(135deg, #f8f3ea 0%, #efe7da 100%);
+  color: #1b1b1b;
+}
+
+.sidebar {
+  border-right: 1px solid rgba(40, 30, 20, 0.14);
+  backdrop-filter: blur(6px);
+  background: rgba(255, 250, 243, 0.9);
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.section {
+  margin-bottom: 1rem;
+  border: 1px solid rgba(35, 26, 14, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.8rem;
+}
+
+.section h2 {
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sketchList {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.searchInput,
+.numberInput,
+.selectInput,
+.textInput {
+  width: 100%;
+  border: 1px solid rgba(44, 30, 15, 0.2);
+  border-radius: 8px;
+  padding: 0.48rem 0.58rem;
+  background: #fffdf7;
+  font-size: 0.92rem;
+}
+
+.sketchButton {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(39, 27, 15, 0.13);
+  background: #fffbf3;
+  border-radius: 8px;
+  padding: 0.56rem;
+  cursor: pointer;
+}
+
+.sketchButtonActive {
+  border-color: #7a532a;
+  background: #f4e2cb;
+}
+
+.sketchMeta {
+  font-size: 0.76rem;
+  opacity: 0.75;
+  margin-top: 0.2rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 0.34rem;
+  opacity: 0.85;
+}
+
+.paramItem {
+  padding: 0.45rem 0;
+  border-top: 1px dashed rgba(20, 20, 20, 0.12);
+}
+
+.paramItem:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.renderButton,
+.actionButton,
+.secondaryButton,
+.dangerButton {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.renderButton,
+.actionButton {
+  background: #1f4035;
+  color: #f7f3ee;
+}
+
+.secondaryButton {
+  background: #ece3d5;
+  color: #24180f;
+  border-color: rgba(30, 20, 10, 0.15);
+}
+
+.dangerButton {
+  background: #8a2f2f;
+  color: #fff6f6;
+}
+
+.renderButton:disabled,
+.actionButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controlsRow {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.previewPane {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.previewTitle {
+  font-size: clamp(1.25rem, 2vw, 1.8rem);
+  line-height: 1.1;
+}
+
+.previewDescription {
+  font-size: 0.92rem;
+  opacity: 0.8;
+  max-width: 70ch;
+}
+
+.canvasWrap {
+  flex: 1;
+  border-radius: 16px;
+  border: 1px solid rgba(34, 24, 15, 0.2);
+  background: #fffaf1;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(45, 34, 20, 0.12);
+}
+
+.previewSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.layerList {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.layerItem {
+  border: 1px solid rgba(35, 24, 14, 0.14);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  background: #fff9ef;
+  cursor: pointer;
+}
+
+.layerItemHovered {
+  border-color: #86562f;
+  background: #f4dfc2;
+}
+
+.status {
+  font-size: 0.84rem;
+  opacity: 0.84;
+  line-height: 1.3;
+}
+
+.muted {
+  font-size: 0.78rem;
+  opacity: 0.72;
+}
+
+.inlineControl {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.radioStack {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 10, 7, 0.56);
+  display: grid;
+  place-items: center;
+  z-index: 30;
+  padding: 1rem;
+}
+
+.modal {
+  width: min(560px, 100%);
+  border-radius: 14px;
+  background: #fff9ef;
+  border: 1px solid rgba(40, 30, 20, 0.18);
+  padding: 1rem;
+}
+
+.modal h3 {
+  margin-bottom: 0.45rem;
+}
+
+.modalActions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+@media (max-width: 980px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid rgba(40, 30, 20, 0.14);
+    max-height: 55vh;
+  }
+
+  .previewPane {
+    min-height: 45vh;
+  }
+}
