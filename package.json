@@ -1,0 +1,41 @@
+{
+  "name": "vibe-plotter",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm sketches:sync && next dev",
+    "build": "pnpm sketches:sync && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "sketch:new": "tsx scripts/new-sketch.ts",
+    "sketches:sync": "tsx scripts/sync-sketches.ts",
+    "sketches:thumbnails": "tsx scripts/generate-thumbnails.ts"
+  },
+  "dependencies": {
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "svg-path-properties": "^2.0.0",
+    "svgson": "^5.3.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@resvg/resvg-js": "^2.6.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "jsdom": "^28.1.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "vitest": "^4.0.18"
+  }
+}
