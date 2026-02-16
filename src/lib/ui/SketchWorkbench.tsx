@@ -48,7 +48,6 @@ import {
   createPlotJobPlan,
   DEFAULT_PLOTTER_CONFIG,
   supportsDirectPlotting,
-  supportsWebSerial,
   type PlotLayerMode,
   type PlotterConfig,
   type PlotterStatus,
@@ -343,7 +342,7 @@ export function SketchWorkbench({
   const initialSeed = initialRenderSeed;
 
   const [directPlottingAvailable, setDirectPlottingAvailable] = useState(false);
-  const [serialAvailable, setSerialAvailable] = useState(false);
+  const [plotterSupportReady, setPlotterSupportReady] = useState(false);
 
   const [selectedSlug, setSelectedSlug] = useState(initialSlug);
   const [searchTerm, setSearchTerm] = useState("");
@@ -396,6 +395,7 @@ export function SketchWorkbench({
     useState<PlotterConfig>(
       () => initialRenderSeed?.plotterConfig ?? DEFAULT_PLOTTER_CONFIG,
     );
+  const [plotterConfigCollapsed, setPlotterConfigCollapsed] = useState(true);
   const seededPanelPreferences = initialPanelSectionPreferences
     ? sanitizePanelSectionPreferences(initialPanelSectionPreferences)
     : null;
@@ -431,9 +431,12 @@ export function SketchWorkbench({
     startWidth: number;
   } | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
+  const plotterControlsHideTimeoutRef = useRef<number | null>(null);
   const [isResizingPanel, setIsResizingPanel] = useState(false);
   const landingRevealTimeoutRef = useRef<number | null>(null);
   const landingResetTimeoutRef = useRef<number | null>(null);
+  const [plotterControlsMounted, setPlotterControlsMounted] = useState(false);
+  const [plotterControlsCollapsed, setPlotterControlsCollapsed] = useState(true);
 
   const clearLandingTimers = useCallback(() => {
     if (landingRevealTimeoutRef.current !== null) {
@@ -443,6 +446,13 @@ export function SketchWorkbench({
     if (landingResetTimeoutRef.current !== null) {
       window.clearTimeout(landingResetTimeoutRef.current);
       landingResetTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearPlotterControlsHideTimer = useCallback(() => {
+    if (plotterControlsHideTimeoutRef.current !== null) {
+      window.clearTimeout(plotterControlsHideTimeoutRef.current);
+      plotterControlsHideTimeoutRef.current = null;
     }
   }, []);
 
@@ -519,7 +529,7 @@ export function SketchWorkbench({
 
   useEffect(() => {
     setDirectPlottingAvailable(supportsDirectPlotting());
-    setSerialAvailable(supportsWebSerial());
+    setPlotterSupportReady(true);
   }, []);
 
   useEffect(() => {
@@ -588,6 +598,10 @@ export function SketchWorkbench({
   useEffect(() => {
     return () => clearLandingTimers();
   }, [clearLandingTimers]);
+
+  useEffect(() => {
+    return () => clearPlotterControlsHideTimer();
+  }, [clearPlotterControlsHideTimer]);
 
   const performRender = useCallback(
     async (
@@ -790,6 +804,92 @@ export function SketchWorkbench({
   const onCancel = async () => {
     await transportRef.current?.cancel(setPlotterStatus);
   };
+
+  const isPlotterCapable = plotterSupportReady && directPlottingAvailable;
+  const isPlotterConnecting = plotterStatus.state === "connecting";
+  const isPlotterConnected =
+    plotterStatus.state === "connected" ||
+    plotterStatus.state === "plotting" ||
+    plotterStatus.state === "paused";
+  const isPlotSessionActive =
+    plotterStatus.state === "plotting" || plotterStatus.state === "paused";
+  const canShowPlotControls = isPlotterConnected;
+  const isPlotterUnavailable = plotterSupportReady && !directPlottingAvailable;
+
+  const plotterStatusLabel = isPlotterUnavailable
+    ? "Connection unavailable"
+    : !plotterSupportReady
+      ? "Not connected"
+      : plotterStatus.message ?? "Not connected";
+
+  const connectionButtonLabel = !plotterSupportReady
+    ? "Connect"
+    : directPlottingAvailable
+      ? isPlotterConnecting
+        ? "Connecting..."
+        : isPlotterConnected
+          ? "Disconnect"
+          : "Connect"
+      : "Unavailable";
+
+  const connectionButtonDisabled = !plotterSupportReady || isPlotterConnecting || !directPlottingAvailable;
+
+  const sessionButtonLabel = !isPlotterCapable
+    ? "Start Plot"
+    : isPlotSessionActive
+      ? plotterStatus.state === "plotting"
+        ? "Pause"
+        : "Resume"
+      : "Start Plot";
+
+  const canStartPlotSession = plotterStatus.state === "connected" && packets.length > 0;
+  const canPauseOrResumePlot = isPlotSessionActive;
+  const canControlPlotSession = canStartPlotSession || canPauseOrResumePlot;
+  const sessionButtonDisabled =
+    !plotterSupportReady || !isPlotterCapable || !canControlPlotSession;
+
+  const onConnectionToggle = async () => {
+    if (!plotterSupportReady || !directPlottingAvailable) return;
+    if (isPlotterConnected || isPlotSessionActive) {
+      await onDisconnect();
+      return;
+    }
+    if (isPlotterConnecting) return;
+    await onConnect();
+  };
+
+  const onSessionToggle = () => {
+    if (!canControlPlotSession) return;
+    if (plotterStatus.state === "plotting") {
+      onPause();
+      return;
+    }
+    if (plotterStatus.state === "paused") {
+      onResume();
+      return;
+    }
+    setConfirmSendOpen(true);
+  };
+
+  useEffect(() => {
+    clearPlotterControlsHideTimer();
+
+    if (canShowPlotControls) {
+      setPlotterControlsMounted(true);
+      setPlotterControlsCollapsed(true);
+      window.requestAnimationFrame(() => {
+        setPlotterControlsCollapsed(false);
+      });
+      return;
+    }
+
+    if (!plotterControlsMounted) return;
+
+    setPlotterControlsCollapsed(true);
+    plotterControlsHideTimeoutRef.current = window.setTimeout(() => {
+      setPlotterControlsMounted(false);
+    }, SECTION_REAL_FADE_COMPLETE_MS);
+  }, [canShowPlotControls, plotterControlsMounted, clearPlotterControlsHideTimer]);
 
   const onToggleSection = (sectionId: PanelSectionId) => {
     setCollapsedSections((current) => ({
@@ -1075,40 +1175,7 @@ export function SketchWorkbench({
       title: "Layers",
       body: (
         <>
-          <div className={styles.radioStack}>
-            <label className={styles.inlineControl}>
-              <input
-                type="radio"
-                name="layerMode"
-                checked={layerMode === "ordered"}
-                onChange={() => setLayerMode("ordered")}
-              />
-              Plot layers in order
-            </label>
-            <label className={styles.inlineControl}>
-              <input
-                type="radio"
-                name="layerMode"
-                checked={layerMode === "flatten"}
-                onChange={() => setLayerMode("flatten")}
-              />
-              Flatten before optimization
-            </label>
-            <label className={styles.inlineControl}>
-              <input
-                type="radio"
-                name="layerMode"
-                checked={layerMode === "pause-between"}
-                onChange={() => setLayerMode("pause-between")}
-              />
-              Pause between layers
-            </label>
-          </div>
-
-          <div
-            className={styles.layerList}
-            onMouseLeave={() => setHoveredLayerId(null)}
-          >
+          <div className={styles.layerList} onMouseLeave={() => setHoveredLayerId(null)}>
             {normalizedDocument?.layers.map((layer, index) => {
               const hovered = hoveredLayerId === layer.id;
               return (
@@ -1134,200 +1201,226 @@ export function SketchWorkbench({
       title: "Plotter",
       body: (
         <>
-          {!directPlottingAvailable ? (
-            <p className={styles.status}>
-              {serialAvailable
-                ? "This browser is not Chromium-based. Direct plotting is disabled, but rendering and SVG export still work."
-                : "Web Serial is unavailable here. Use Chromium desktop for direct plotting."}
-            </p>
-          ) : null}
-
-          <div className={styles.controlsRow}>
-            <button
-              className={styles.actionButton}
-              disabled={!serialAvailable || plotterStatus.state === "connecting"}
-              onClick={onConnect}
-              type="button"
-            >
-              Connect
-            </button>
-            <button
-              className={styles.secondaryButton}
-              disabled={!transportRef.current?.isConnected()}
-              onClick={onDisconnect}
-              type="button"
-            >
-              Disconnect
-            </button>
-          </div>
-
-          <div className={styles.controlsRow}>
-            <button
-              className={styles.actionButton}
-              disabled={
-                !directPlottingAvailable ||
-                !transportRef.current?.isConnected() ||
-                !packets.length ||
-                plotterStatus.state === "plotting"
-              }
-              onClick={() => setConfirmSendOpen(true)}
-              type="button"
-            >
-              Send to Plotter
-            </button>
-            <button
-              className={styles.secondaryButton}
-              disabled={plotterStatus.state !== "plotting"}
-              onClick={onPause}
-              type="button"
-            >
-              Pause
-            </button>
-            <button
-              className={styles.secondaryButton}
-              disabled={plotterStatus.state !== "paused"}
-              onClick={onResume}
-              type="button"
-            >
-              Resume
-            </button>
-            <button
-              className={styles.dangerButton}
-              disabled={
-                plotterStatus.state !== "plotting" &&
-                plotterStatus.state !== "paused"
-              }
-              onClick={onCancel}
-              type="button"
-            >
-              Cancel
-            </button>
-          </div>
-
-          <details>
-            <summary>More plotter config</summary>
-            <div className={styles.row}>
-              <label>
-                <span className={styles.label}>Model</span>
-                <select
-                  className={styles.selectInput}
-                  value={plotterConfig.model}
-                  onChange={(event) =>
-                    setPlotterConfig((current) => ({
-                      ...current,
-                      model: event.target.value as PlotterConfig["model"],
-                    }))
-                  }
-                >
-                  <option value="A4">AxiDraw A4</option>
-                  <option value="A3">AxiDraw A3</option>
-                  <option value="A2">AxiDraw A2</option>
-                  <option value="A1">AxiDraw A1</option>
-                  <option value="XLX">AxiDraw XLX</option>
-                  <option value="MiniKit">AxiDraw MiniKit</option>
-                  <option value="B6">AxiDraw B6</option>
-                </select>
-              </label>
-              <label>
-                <span className={styles.label}>Repeat</span>
-                <input
-                  className={styles.numberInput}
-                  type="number"
-                  min={1}
-                  max={12}
-                  step={1}
-                  value={plotterConfig.repeatCount}
-                  onChange={(event) =>
-                    setPlotterConfig((current) => ({
-                      ...current,
-                      repeatCount: Number(event.target.value),
-                    }))
-                  }
-                />
-              </label>
-            </div>
-
-            <div className={styles.row}>
-              <label>
-                <span className={styles.label}>Pen-down speed</span>
-                <input
-                  className={styles.numberInput}
-                  type="number"
-                  min={1}
-                  max={100}
-                  step={1}
-                  value={plotterConfig.speedPenDown}
-                  onChange={(event) =>
-                    setPlotterConfig((current) => ({
-                      ...current,
-                      speedPenDown: Number(event.target.value),
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span className={styles.label}>Pen-up speed</span>
-                <input
-                  className={styles.numberInput}
-                  type="number"
-                  min={1}
-                  max={100}
-                  step={1}
-                  value={plotterConfig.speedPenUp}
-                  onChange={(event) =>
-                    setPlotterConfig((current) => ({
-                      ...current,
-                      speedPenUp: Number(event.target.value),
-                    }))
-                  }
-                />
-              </label>
-            </div>
-
-            <div className={styles.row}>
-              <label>
-                <span className={styles.label}>Pen-up delay (ms)</span>
-                <input
-                  className={styles.numberInput}
-                  type="number"
-                  min={0}
-                  max={5000}
-                  step={10}
-                  value={plotterConfig.penUpDelayMs}
-                  onChange={(event) =>
-                    setPlotterConfig((current) => ({
-                      ...current,
-                      penUpDelayMs: Number(event.target.value),
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span className={styles.label}>Pen-down delay (ms)</span>
-                <input
-                  className={styles.numberInput}
-                  type="number"
-                  min={0}
-                  max={5000}
-                  step={10}
-                  value={plotterConfig.penDownDelayMs}
-                  onChange={(event) =>
-                    setPlotterConfig((current) => ({
-                      ...current,
-                      penDownDelayMs: Number(event.target.value),
-                    }))
-                  }
-                />
-              </label>
-            </div>
-          </details>
+          <button
+            className={styles.actionButton}
+            disabled={connectionButtonDisabled}
+            onClick={onConnectionToggle}
+            type="button"
+          >
+            {connectionButtonLabel}
+          </button>
 
           <p className={styles.status}>
-            {plotterStatus.message ?? "Status unavailable"}
+            {plotterStatusLabel}
             {plotterStatus.totalPackets
               ? ` (${plotterStatus.sentPackets ?? 0}/${plotterStatus.totalPackets})`
               : ""}
           </p>
+
+          {plotterControlsMounted ? (
+            <div
+              className={`${styles.sectionBodyContainer} ${
+                plotterControlsCollapsed ? styles.sectionBodyContainerCollapsed : ""
+              }`}
+              aria-hidden={plotterControlsCollapsed}
+            >
+              <div className={styles.sectionBodyContainerInner}>
+                <div className={styles.sectionBody}>
+                  <div className={styles.controlsRow}>
+                    <button
+                      className={styles.actionButton}
+                      disabled={sessionButtonDisabled}
+                      onClick={onSessionToggle}
+                      type="button"
+                    >
+                      {sessionButtonLabel}
+                    </button>
+
+                    {isPlotSessionActive ? (
+                      <button
+                        className={styles.dangerButton}
+                        onClick={onCancel}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className={styles.radioStack}>
+                    <span className={styles.label}>Layer mode</span>
+                    <label className={styles.inlineControl}>
+                      <input
+                        type="radio"
+                        name="layerMode"
+                        checked={layerMode === "ordered"}
+                        onChange={() => setLayerMode("ordered")}
+                      />
+                      Plot layers in order
+                    </label>
+                    <label className={styles.inlineControl}>
+                      <input
+                        type="radio"
+                        name="layerMode"
+                        checked={layerMode === "flatten"}
+                        onChange={() => setLayerMode("flatten")}
+                      />
+                      Flatten before optimization
+                    </label>
+                    <label className={styles.inlineControl}>
+                      <input
+                        type="radio"
+                        name="layerMode"
+                        checked={layerMode === "pause-between"}
+                        onChange={() => setLayerMode("pause-between")}
+                      />
+                      Pause between layers
+                    </label>
+                  </div>
+
+                  <div className={styles.plotterSubsection}>
+                    <div className={styles.plotterSubsectionHeader}>
+                      <span className={styles.sectionTitle}>More plotter config</span>
+                      <button
+                        className={styles.sectionCollapseToggle}
+                        aria-label={`${plotterConfigCollapsed ? "Expand" : "Collapse"} plotter config`}
+                        aria-expanded={!plotterConfigCollapsed}
+                        onClick={() => setPlotterConfigCollapsed((current) => !current)}
+                        type="button"
+                      >
+                        <SectionCollapseCaret collapsed={plotterConfigCollapsed} />
+                      </button>
+                    </div>
+                    <div
+                      className={`${styles.sectionBodyContainer} ${
+                        plotterConfigCollapsed ? styles.sectionBodyContainerCollapsed : ""
+                      }`}
+                      aria-hidden={plotterConfigCollapsed}
+                    >
+                      <div className={styles.sectionBodyContainerInner}>
+                        <div className={styles.sectionBody}>
+                          <div className={styles.row}>
+                            <label>
+                              <span className={styles.label}>Model</span>
+                              <select
+                                className={styles.selectInput}
+                                value={plotterConfig.model}
+                                onChange={(event) =>
+                                  setPlotterConfig((current) => ({
+                                    ...current,
+                                    model: event.target.value as PlotterConfig["model"],
+                                  }))
+                                }
+                              >
+                                <option value="A4">AxiDraw A4</option>
+                                <option value="A3">AxiDraw A3</option>
+                                <option value="XLX">AxiDraw XLX</option>
+                                <option value="MiniKit">AxiDraw MiniKit</option>
+                                <option value="A2">AxiDraw A2</option>
+                                <option value="A1">AxiDraw A1</option>
+                                <option value="B6">AxiDraw B6</option>
+                              </select>
+                            </label>
+                            <label>
+                              <span className={styles.label}>Repeat</span>
+                              <input
+                                className={styles.numberInput}
+                                type="number"
+                                min={1}
+                                max={12}
+                                step={1}
+                                value={plotterConfig.repeatCount}
+                                onChange={(event) =>
+                                  setPlotterConfig((current) => ({
+                                    ...current,
+                                    repeatCount: Number(event.target.value),
+                                  }))
+                                }
+                              />
+                            </label>
+                          </div>
+
+                          <div className={styles.row}>
+                            <label>
+                              <span className={styles.label}>Pen-down speed</span>
+                              <input
+                                className={styles.numberInput}
+                                type="number"
+                                min={1}
+                                max={100}
+                                step={1}
+                                value={plotterConfig.speedPenDown}
+                                onChange={(event) =>
+                                  setPlotterConfig((current) => ({
+                                    ...current,
+                                    speedPenDown: Number(event.target.value),
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span className={styles.label}>Pen-up speed</span>
+                              <input
+                                className={styles.numberInput}
+                                type="number"
+                                min={1}
+                                max={100}
+                                step={1}
+                                value={plotterConfig.speedPenUp}
+                                onChange={(event) =>
+                                  setPlotterConfig((current) => ({
+                                    ...current,
+                                    speedPenUp: Number(event.target.value),
+                                  }))
+                                }
+                              />
+                            </label>
+                          </div>
+
+                          <div className={styles.row}>
+                            <label>
+                              <span className={styles.label}>Pen-up delay (ms)</span>
+                              <input
+                                className={styles.numberInput}
+                                type="number"
+                                min={0}
+                                max={5000}
+                                step={10}
+                                value={plotterConfig.penUpDelayMs}
+                                onChange={(event) =>
+                                  setPlotterConfig((current) => ({
+                                    ...current,
+                                    penUpDelayMs: Number(event.target.value),
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span className={styles.label}>Pen-down delay (ms)</span>
+                              <input
+                                className={styles.numberInput}
+                                type="number"
+                                min={0}
+                                max={5000}
+                                step={10}
+                                value={plotterConfig.penDownDelayMs}
+                                onChange={(event) =>
+                                  setPlotterConfig((current) => ({
+                                    ...current,
+                                    penDownDelayMs: Number(event.target.value),
+                                  }))
+                                }
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </>
       ),
     },

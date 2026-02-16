@@ -21,12 +21,10 @@ describe("SketchWorkbench", () => {
     cleanup();
   });
 
-  it("shows fallback plotting message when Web Serial is unavailable", async () => {
+  it("shows unavailable plotter control when Web Serial is unsupported", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
 
-    expect(
-      await screen.findByText(/Web Serial is unavailable here/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Unavailable" })).toBeInTheDocument();
   });
 
   it("supports manual render dirty flow", async () => {
