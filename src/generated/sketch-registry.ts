@@ -4,6 +4,7 @@ import type { SketchManifest } from "@/lib/sketch-core/manifestSchema";
 import type { PlotterSketch } from "@/lib/sketch-core/PlotterSketch";
 import InsetSquare from "@/sketches/inset-square/InsetSquare";
 import LayeredWaves from "@/sketches/layered-waves/LayeredWaves";
+import AuroraTopography from "@/sketches/aurora-topography/AuroraTopography";
 
 export type SketchConstructor = new () => PlotterSketch;
 
@@ -40,9 +41,25 @@ const manifest2: SketchManifest =
     "className": "LayeredWaves"
   };
 
+const manifest3: SketchManifest =
+  {
+    "slug": "aurora-topography",
+    "title": "Aurora Topography",
+    "description": "Layered contour currents and halo rings designed for multi-pen plot sessions.",
+    "tags": [
+      "featured",
+      "contours",
+      "multi-layer"
+    ],
+    "order": 3,
+    "thumbnail": "thumbnail.png",
+    "className": "AuroraTopography"
+  };
+
 export const sketchRegistry: SketchRegistryEntry[] = [
   { manifest: manifest1, Sketch: InsetSquare },
   { manifest: manifest2, Sketch: LayeredWaves },
+  { manifest: manifest3, Sketch: AuroraTopography },
 ];
 
 export const sketchRegistryBySlug = Object.fromEntries(

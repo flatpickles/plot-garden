@@ -1,0 +1,13 @@
+{
+  "slug": "aurora-topography",
+  "title": "Aurora Topography",
+  "description": "Layered contour currents and halo rings designed for multi-pen plot sessions.",
+  "tags": [
+    "featured",
+    "contours",
+    "multi-layer"
+  ],
+  "order": 3,
+  "thumbnail": "thumbnail.png",
+  "className": "AuroraTopography"
+}
