@@ -1528,6 +1528,38 @@ export function SketchWorkbench({
           </>
         ),
       },
+      aboutPlotGarden: {
+        title: "About Plot Garden",
+        body: (
+          <>
+            <p className={styles.status}>
+              Plot Garden is a collaboration between{" "}
+              <a
+                className={styles.inlineLink}
+                href="https://flatpickles.com"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Matt Nichols
+              </a>{" "}
+              and{" "}
+              <a
+                className={styles.inlineLink}
+                href="https://openai.com/codex"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Codex
+              </a>
+              .
+            </p>
+            <ul className={styles.controlPanelInfoList}>
+              <li>Built for exploring and refining generative pen-plot sketches.</li>
+              <li>Designed to move from sketch parameter tweaks to plotting workflows.</li>
+            </ul>
+          </>
+        ),
+      },
     };
 
   const settingsSidebarSections: Partial<

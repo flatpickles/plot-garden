@@ -22,10 +22,11 @@ describe("panelSectionPreferences cookie helpers", () => {
           },
         },
         help: {
-          order: ["helpOverview"],
+          order: ["aboutPlotGarden", "helpOverview"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
             helpOverview: true,
+            aboutPlotGarden: true,
           },
         },
         settings: {
@@ -51,10 +52,11 @@ describe("panelSectionPreferences cookie helpers", () => {
           },
         },
         help: {
-          order: ["helpOverview"],
+          order: ["aboutPlotGarden", "helpOverview"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
             helpOverview: true,
+            aboutPlotGarden: true,
           },
         },
         settings: {

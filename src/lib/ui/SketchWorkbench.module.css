@@ -604,6 +604,26 @@
   margin: 0;
 }
 
+.inlineLink {
+  color: #1f5a45;
+  text-decoration: none;
+  text-underline-offset: 0.12em;
+  transition: color 120ms ease;
+}
+
+.inlineLink:hover {
+  color: #174737;
+  text-decoration: underline;
+}
+
+.inlineLink:focus-visible {
+  color: #174737;
+  text-decoration: underline;
+  outline: 2px solid #7a532a;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .canvasFooterStats {
   font-size: 0.86rem;
   opacity: 0.66;

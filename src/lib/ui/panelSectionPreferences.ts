@@ -7,6 +7,7 @@ export type PanelSectionId =
   | "layers"
   | "plotter"
   | "helpOverview"
+  | "aboutPlotGarden"
   | "panelSettings";
 
 export type PanelSectionModePreferences = {
@@ -30,7 +31,7 @@ export const DEFAULT_PANEL_SECTION_ORDER: PanelSectionId[] = [
   "layers",
   "plotter",
 ];
-export const DEFAULT_HELP_SECTION_ORDER: PanelSectionId[] = ["helpOverview"];
+export const DEFAULT_HELP_SECTION_ORDER: PanelSectionId[] = ["aboutPlotGarden", "helpOverview"];
 export const DEFAULT_SETTINGS_SECTION_ORDER: PanelSectionId[] = ["panelSettings"];
 
 export const PANEL_SECTION_ORDER_BY_VIEW: Record<ControlPanelView, PanelSectionId[]> = {
@@ -46,6 +47,7 @@ export const DEFAULT_PANEL_SECTION_COLLAPSED: Record<PanelSectionId, boolean> = 
   layers: false,
   plotter: false,
   helpOverview: false,
+  aboutPlotGarden: false,
   panelSettings: false,
 };
 
@@ -109,6 +111,12 @@ export function sanitizePanelSectionOrder(
     if (!isPanelSectionId(candidate) || !allowed.has(candidate) || seen.has(candidate)) continue;
     seen.add(candidate);
     next.push(candidate);
+  }
+
+  // Migrate legacy help layouts (saved before About existed) to show About first.
+  if (view === "help" && !seen.has("aboutPlotGarden")) {
+    seen.add("aboutPlotGarden");
+    next.unshift("aboutPlotGarden");
   }
 
   for (const id of defaults) {
