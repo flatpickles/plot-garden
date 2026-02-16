@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { sketchRegistry } from "@/generated/sketch-registry";
 import { parsePanelSectionPreferencesCookie, PANEL_SECTION_PREFS_COOKIE_KEY } from "@/lib/ui/panelSectionPreferences";
+import { computeSketchInitialRenderState } from "@/lib/ui/sketchRenderBootstrap";
 import { SketchWorkbench } from "@/lib/ui/SketchWorkbench";
 
 export default async function SketchPage({
@@ -17,10 +18,13 @@ export default async function SketchPage({
   );
   const match = sketchRegistry.find((entry) => entry.manifest.slug === resolved.slug);
   if (!match) notFound();
+  const initialRenderSeed = await computeSketchInitialRenderState(match);
 
   return (
     <SketchWorkbench
+      key={resolved.slug}
       initialPanelSectionPreferences={initialPanelSectionPreferences}
+      initialRenderSeed={initialRenderSeed}
       initialSlug={resolved.slug}
     />
   );

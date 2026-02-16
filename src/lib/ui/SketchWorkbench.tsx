@@ -58,6 +58,12 @@ import {
   writeLocalStorageJSON,
 } from "@/lib/utils/localStorage";
 import {
+  DEFAULT_CONTEXT,
+  DEFAULT_LAYER_MODE,
+  DEFAULT_RENDER_MODE,
+  type SketchRenderSeed,
+} from "@/lib/ui/sketchRenderBootstrap";
+import {
   DEFAULT_PANEL_SECTION_COLLAPSED,
   DEFAULT_PANEL_SECTION_ORDER,
   PANEL_SECTION_PREFS_COOKIE_KEY,
@@ -71,19 +77,24 @@ import {
 
 import styles from "./SketchWorkbench.module.css";
 
-const DEFAULT_CONTEXT: SketchRenderContext = {
-  width: 8,
-  height: 6,
-  units: "in",
-  seed: 1,
-};
-
 const PLOTTER_CONFIG_STORAGE_KEY = "vibe-plotter.plotter-config";
 const SECTION_DROP_TRAVEL_MS = 280;
 const SECTION_DROP_FADE_MS = 220;
 const SECTION_ACTIVE_FADE_IN_MS = 120;
 const SECTION_DROP_ANIMATION_MS = SECTION_DROP_TRAVEL_MS + SECTION_DROP_FADE_MS;
 const SECTION_REAL_FADE_COMPLETE_MS = SECTION_DROP_TRAVEL_MS + SECTION_ACTIVE_FADE_IN_MS;
+
+function plotterConfigEqual(a?: PlotterConfig, b?: PlotterConfig): boolean {
+  if (!a || !b) return false;
+  return (
+    a.model === b.model &&
+    a.speedPenDown === b.speedPenDown &&
+    a.speedPenUp === b.speedPenUp &&
+    a.penUpDelayMs === b.penUpDelayMs &&
+    a.penDownDelayMs === b.penDownDelayMs &&
+    a.repeatCount === b.repeatCount
+  );
+}
 
 function toTranslationTransformString({
   x,
@@ -320,11 +331,14 @@ function SortablePanelSection({
 export function SketchWorkbench({
   initialSlug,
   initialPanelSectionPreferences,
+  initialRenderSeed,
 }: {
   initialSlug: string;
   initialPanelSectionPreferences?: PanelSectionPreferences | null;
+  initialRenderSeed?: SketchRenderSeed;
 }) {
   const router = useRouter();
+  const initialSeed = initialRenderSeed;
 
   const [directPlottingAvailable, setDirectPlottingAvailable] = useState(false);
   const [serialAvailable, setSerialAvailable] = useState(false);
@@ -339,28 +353,47 @@ export function SketchWorkbench({
     () => (selectedEntry ? new selectedEntry.Sketch() : null),
     [selectedEntry],
   );
+  const fallbackDefaults = useMemo(() => {
+    if (!sketch) return {};
+    const defaults = sketch.getDefaultParams() as Record<string, SketchParamValue>;
+    return sketch.coerceParams(defaults) as Record<string, SketchParamValue>;
+  }, [sketch]);
 
-  const [draftParams, setDraftParams] = useState<Record<string, SketchParamValue>>({});
+  const [draftParams, setDraftParams] = useState<Record<string, SketchParamValue>>(() =>
+    initialRenderSeed?.draftParams ?? fallbackDefaults,
+  );
   const [renderedParams, setRenderedParams] = useState<
     Record<string, SketchParamValue>
-  >({});
-  const [draftContext, setDraftContext] =
-    useState<SketchRenderContext>(DEFAULT_CONTEXT);
-  const [renderedContext, setRenderedContext] =
-    useState<SketchRenderContext>(DEFAULT_CONTEXT);
+  >(() => initialRenderSeed?.renderedParams ?? {});
+  const [draftContext, setDraftContext] = useState<SketchRenderContext>(
+    () => initialRenderSeed?.draftContext ?? DEFAULT_CONTEXT,
+  );
+  const [renderedContext, setRenderedContext] = useState<SketchRenderContext>(
+    () => initialRenderSeed?.renderedContext ?? DEFAULT_CONTEXT,
+  );
 
-  const [renderMode, setRenderMode] = useState<"live" | "manual">("live");
+  const [renderMode, setRenderMode] = useState<"live" | "manual">(
+    () => initialRenderSeed?.renderMode ?? DEFAULT_RENDER_MODE,
+  );
   const [rendering, setRendering] = useState(false);
-  const [renderError, setRenderError] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(
+    () => initialRenderSeed?.renderError ?? null,
+  );
   const [normalizedDocument, setNormalizedDocument] =
-    useState<Awaited<ReturnType<typeof normalizeSketchOutput>> | null>(null);
+    useState<Awaited<ReturnType<typeof normalizeSketchOutput>> | null>(() =>
+      initialRenderSeed?.normalizedDocument ?? null,
+    );
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
 
-  const [layerMode, setLayerMode] = useState<PlotLayerMode>("ordered");
+  const [layerMode, setLayerMode] = useState<PlotLayerMode>(
+    () => initialRenderSeed?.layerMode ?? DEFAULT_LAYER_MODE,
+  );
   const [confirmSendOpen, setConfirmSendOpen] = useState(false);
 
   const [plotterConfig, setPlotterConfig] =
-    useState<PlotterConfig>(DEFAULT_PLOTTER_CONFIG);
+    useState<PlotterConfig>(
+      () => initialRenderSeed?.plotterConfig ?? DEFAULT_PLOTTER_CONFIG,
+    );
   const seededPanelPreferences = initialPanelSectionPreferences
     ? sanitizePanelSectionPreferences(initialPanelSectionPreferences)
     : null;
@@ -493,15 +526,16 @@ export function SketchWorkbench({
 
   useEffect(() => {
     if (!sketch) return;
+    if (initialSeed?.normalizedDocument) return;
 
-    const defaults = sketch.getDefaultParams() as Record<string, SketchParamValue>;
+    const defaults = fallbackDefaults;
     setDraftParams(defaults);
     setRenderedParams(defaults);
     setDraftContext(DEFAULT_CONTEXT);
     setRenderedContext(DEFAULT_CONTEXT);
     setHoveredLayerId(null);
     void performRender(defaults, DEFAULT_CONTEXT);
-  }, [sketch, performRender]);
+  }, [initialSeed?.normalizedDocument, sketch, fallbackDefaults, performRender]);
 
   const dirty = useMemo(() => {
     return (
@@ -557,10 +591,27 @@ export function SketchWorkbench({
     });
   }, [searchTerm]);
 
+  const hasSeededJobPlan =
+    Boolean(
+      initialSeed?.seededJobPlan &&
+        normalizedDocument === initialSeed.normalizedDocument &&
+        layerMode === (initialSeed?.layerMode ?? DEFAULT_LAYER_MODE) &&
+        plotterConfigEqual(plotterConfig, initialSeed?.plotterConfig),
+    );
+
   const jobPlan = useMemo(() => {
     if (!normalizedDocument) return null;
+    if (hasSeededJobPlan && initialSeed?.seededJobPlan) {
+      return initialSeed.seededJobPlan;
+    }
     return createPlotJobPlan(normalizedDocument, layerMode, plotterConfig);
-  }, [layerMode, normalizedDocument, plotterConfig]);
+  }, [
+    hasSeededJobPlan,
+    initialSeed?.seededJobPlan,
+    layerMode,
+    normalizedDocument,
+    plotterConfig,
+  ]);
 
   const packets = useMemo(() => {
     if (!jobPlan) return [];
