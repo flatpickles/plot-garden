@@ -68,6 +68,8 @@ const schema = {
   },
 } as const satisfies SketchParamSchema;
 
+const LOCAL_SEED = 1;
+
 function fract(value: number): number {
   return value - Math.floor(value);
 }
@@ -171,7 +173,7 @@ export default class AuroraTopography extends PlotterSketch<typeof schema> {
     params: SketchParamValues<typeof schema>,
     context: SketchRenderContext,
   ): GeometrySketchOutput {
-    const random = mulberry32(params.seed + context.seed * 13);
+    const random = mulberry32(params.seed + LOCAL_SEED * 13);
 
     const inset = Math.min(context.width, context.height) * 0.06;
     const minX = inset;

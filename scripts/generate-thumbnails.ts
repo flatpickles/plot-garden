@@ -16,7 +16,6 @@ const PREVIEW_CONTEXT: SketchRenderContext = {
   width: 8,
   height: 6,
   units: "in",
-  seed: 1,
 };
 
 async function renderThumbnail(classFilePath: string): Promise<Buffer> {

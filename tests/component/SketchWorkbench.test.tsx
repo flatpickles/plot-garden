@@ -43,9 +43,9 @@ describe("SketchWorkbench", () => {
       expect(screen.getByRole("button", { name: "Rendered" })).toBeDisabled();
     });
 
-    const seedInput = screen.getByLabelText("Global seed");
-    fireEvent.change(seedInput, {
-      target: { value: "2" },
+    const widthInput = screen.getByLabelText("Canvas width");
+    fireEvent.change(widthInput, {
+      target: { value: "9" },
     });
 
     await waitFor(() => {

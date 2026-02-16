@@ -16,7 +16,6 @@ export const DEFAULT_CONTEXT: SketchRenderContext = {
   width: 8,
   height: 6,
   units: "in",
-  seed: 1,
 };
 
 export const DEFAULT_LAYER_MODE: PlotLayerMode = "ordered";

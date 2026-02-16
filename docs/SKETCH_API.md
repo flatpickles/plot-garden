@@ -18,7 +18,6 @@ Required pieces:
 - `width: number`
 - `height: number`
 - `units: "in" | "mm"`
-- `seed: number`
 
 The width/height/units are controlled in the sidebar global controls.
 

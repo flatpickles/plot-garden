@@ -33,6 +33,8 @@ const schema = {
   },
 } as const satisfies SketchParamSchema;
 
+const LOCAL_SEED = 1;
+
 function mulberry32(seed: number) {
   let state = seed >>> 0;
   return () => {
@@ -51,7 +53,7 @@ export default class LayeredWaves extends PlotterSketch<typeof schema> {
     params: SketchParamValues<typeof schema>,
     context: SketchRenderContext,
   ): SvgSketchOutput {
-    const random = mulberry32(context.seed);
+    const random = mulberry32(LOCAL_SEED);
     const count = Math.max(2, Math.floor(params.waveCount));
     const lineSpacing = context.height / (count + 1);
     const sampleCount = 120;

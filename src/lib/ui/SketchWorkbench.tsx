@@ -1514,23 +1514,6 @@ export function SketchWorkbench({
                 <option value="mm">Millimeters</option>
               </select>
             </label>
-            <label>
-              <span className={styles.label}>Seed</span>
-              <input
-                className={styles.numberInput}
-                type="number"
-                aria-label="Global seed"
-                min={0}
-                step={1}
-                value={draftContext.seed}
-                onChange={(event) =>
-                  setDraftContext((current) => ({
-                    ...current,
-                    seed: Number(event.target.value),
-                  }))
-                }
-              />
-            </label>
           </div>
 
           <div className={styles.row}>

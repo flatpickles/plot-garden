@@ -9,7 +9,6 @@ const context = {
   width: 8,
   height: 6,
   units: "in" as const,
-  seed: 1,
 };
 
 describe("normalizeSketchOutput", () => {

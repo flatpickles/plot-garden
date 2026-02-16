@@ -17,7 +17,7 @@ describe("computeSketchInitialRenderState", () => {
     expect(seed.normalizedDocument).not.toBeNull();
     expect(seed.seededJobPlan).not.toBeNull();
     expect(seed.renderedParams).toEqual(seed.draftParams);
-    expect(seed.draftContext).toEqual({ width: 8, height: 6, units: "in", seed: 1 });
+    expect(seed.draftContext).toEqual({ width: 8, height: 6, units: "in" });
   });
 
   it("returns an error state when sketch.render throws", async () => {

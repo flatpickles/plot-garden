@@ -42,7 +42,6 @@ export interface SketchRenderContext {
   width: number;
   height: number;
   units: Unit;
-  seed: number;
 }
 
 export interface GeometryLayer {
