@@ -160,6 +160,20 @@ const SECTION_DROP_ANIMATION: DropAnimation = {
   },
 };
 
+const restrictSectionDragToVerticalAxis = ({
+  transform,
+}: {
+  transform: {
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+  };
+}) => ({
+  ...transform,
+  x: 0,
+});
+
 function shallowSerialize(value: unknown): string {
   if (typeof value !== "object" || value === null) {
     return JSON.stringify(value);
@@ -1431,6 +1445,7 @@ export function SketchWorkbench({
       <aside className={styles.sidebar}>
         <DndContext
           id="panel-sections-dnd"
+          modifiers={[restrictSectionDragToVerticalAxis]}
           collisionDetection={closestCenter}
           onDragCancel={onSectionDragCancel}
           onDragEnd={onSectionDragEnd}
