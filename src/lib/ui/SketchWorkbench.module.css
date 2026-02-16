@@ -22,14 +22,14 @@
 .resizeHandle {
   position: relative;
   cursor: col-resize;
-  background: rgba(40, 30, 20, 0.14);
+  background: rgba(35, 26, 14, 0.12);
   transition: background-color 120ms ease;
   touch-action: none;
   user-select: none;
 }
 
 .resizeHandleActive {
-  background: rgba(122, 83, 42, 0.48);
+  background: rgba(35, 26, 14, 0.12);
 }
 
 .resizeHandle::before {
