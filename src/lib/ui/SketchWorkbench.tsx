@@ -2,6 +2,7 @@
 
 import {
   type CSSProperties,
+  type HTMLAttributes,
   type ReactNode,
   useCallback,
   useEffect,
@@ -167,6 +168,28 @@ type SidebarSection = {
   body: ReactNode;
 };
 
+function SectionCollapseCaret({
+  collapsed,
+}: {
+  collapsed: boolean;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={styles.sectionCollapseCaret}
+      data-collapsed={collapsed ? "true" : "false"}
+    >
+      <svg
+        className={styles.sectionCollapseCaretIcon}
+        viewBox="0 0 16 12"
+        focusable="false"
+      >
+        <path d="M2.25 3.1c0-.6.49-1.1 1.1-1.1h9.3c.61 0 1.1.5 1.1 1.1 0 .26-.1.52-.27.72L8.74 9.04a1.02 1.02 0 0 1-1.48 0L2.52 3.82a1.09 1.09 0 0 1-.27-.72Z" />
+      </svg>
+    </span>
+  );
+}
+
 function SectionDragOverlay({
   collapsed,
   section,
@@ -186,12 +209,19 @@ function SectionDragOverlay({
           className={`${styles.sectionCollapseToggle} ${styles.sectionCollapseToggleGhost}`}
           aria-hidden
         >
-          <span className={styles.sectionCollapseCaret}>
-            {collapsed ? "▾" : "▴"}
-          </span>
+          <SectionCollapseCaret collapsed={collapsed} />
         </span>
       </div>
-      {!collapsed ? <div className={styles.sectionBody}>{section.body}</div> : null}
+      <div
+        className={`${styles.sectionBodyContainer} ${
+          collapsed ? styles.sectionBodyContainerCollapsed : ""
+        }`}
+        aria-hidden={collapsed}
+      >
+        <div className={styles.sectionBodyContainerInner}>
+          <div className={styles.sectionBody}>{section.body}</div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -227,6 +257,7 @@ function SortablePanelSection({
     opacity: dimmed ? 0.3 : 1,
   };
   const contentId = `panel-section-${section.id}`;
+  const marginDragListeners = (listeners ?? {}) as HTMLAttributes<HTMLDivElement>;
 
   return (
     <section
@@ -234,6 +265,24 @@ function SortablePanelSection({
       style={style}
       className={`${styles.section} ${isDragging ? styles.sectionDragging : ""}`}
     >
+      <div className={styles.sectionMarginDragRing} aria-hidden>
+        <div
+          className={`${styles.sectionMarginDragHandle} ${styles.sectionMarginDragHandleTop}`}
+          {...marginDragListeners}
+        />
+        <div
+          className={`${styles.sectionMarginDragHandle} ${styles.sectionMarginDragHandleRight}`}
+          {...marginDragListeners}
+        />
+        <div
+          className={`${styles.sectionMarginDragHandle} ${styles.sectionMarginDragHandleBottom}`}
+          {...marginDragListeners}
+        />
+        <div
+          className={`${styles.sectionMarginDragHandle} ${styles.sectionMarginDragHandleLeft}`}
+          {...marginDragListeners}
+        />
+      </div>
       <div className={styles.sectionHeader}>
         <div
           className={styles.sectionHeaderDragArea}
@@ -250,16 +299,20 @@ function SortablePanelSection({
           onClick={() => onToggleSection(section.id)}
           type="button"
         >
-          <span className={styles.sectionCollapseCaret} aria-hidden>
-            {collapsed ? "▾" : "▴"}
-          </span>
+          <SectionCollapseCaret collapsed={collapsed} />
         </button>
       </div>
-      {!collapsed ? (
-        <div className={styles.sectionBody} id={contentId}>
-          {section.body}
+      <div
+        className={`${styles.sectionBodyContainer} ${
+          collapsed ? styles.sectionBodyContainerCollapsed : ""
+        }`}
+        id={contentId}
+        aria-hidden={collapsed}
+      >
+        <div className={styles.sectionBodyContainerInner}>
+          <div className={styles.sectionBody}>{section.body}</div>
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }
@@ -468,7 +521,7 @@ export function SketchWorkbench({
     return renderNormalizedDocumentToSvg(normalizedDocument, {
       hoveredLayerId,
       dimOpacity: 0.1,
-      background: "#fff8ee",
+      background: "transparent",
     });
   }, [hoveredLayerId, normalizedDocument]);
 

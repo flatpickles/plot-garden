@@ -1,4 +1,5 @@
 .shell {
+  --surface-secondary-lightest: rgba(255, 255, 255, 0.72);
   min-height: 100vh;
   display: grid;
   grid-template-columns: 340px 1fr;
@@ -15,20 +16,71 @@
   background: rgba(255, 250, 243, 0.9);
   padding: 1rem;
   overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .section {
+  --section-padding-hit: 0.8rem;
   margin-bottom: 1rem;
   border: 1px solid rgba(35, 26, 14, 0.12);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
-  padding: 0.8rem;
-  display: grid;
-  gap: 0.65rem;
+  background: var(--surface-secondary-lightest);
+  padding: var(--section-padding-hit);
+  position: relative;
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease,
     opacity 120ms ease;
+}
+
+.sectionMarginDragRing {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sectionMarginDragHandle {
+  position: absolute;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sectionMarginDragHandleTop,
+.sectionMarginDragHandleBottom {
+  left: 0;
+  right: 0;
+  height: var(--section-padding-hit);
+}
+
+.sectionMarginDragHandleTop {
+  top: 0;
+}
+
+.sectionMarginDragHandleBottom {
+  bottom: 0;
+}
+
+.sectionMarginDragHandleRight,
+.sectionMarginDragHandleLeft {
+  top: 0;
+  bottom: 0;
+  width: var(--section-padding-hit);
+}
+
+.sectionMarginDragHandleRight {
+  right: 0;
+}
+
+.sectionMarginDragHandleLeft {
+  left: 0;
 }
 
 .sectionHeader {
@@ -40,12 +92,13 @@
 .sectionHeaderDragArea {
   flex: 1;
   min-width: 0;
+  align-self: stretch;
   display: flex;
   align-items: center;
   cursor: grab;
   user-select: none;
   touch-action: none;
-  padding: 0.1rem 0;
+  padding: 0;
 }
 
 .sectionTitle {
@@ -75,11 +128,14 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  transition: background-color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
 }
 
 .sectionCollapseToggle:hover {
   background: #f6e3c8;
+  border-color: rgba(60, 42, 21, 0.28);
 }
 
 .sectionCollapseToggleGhost {
@@ -87,8 +143,55 @@
 }
 
 .sectionCollapseCaret {
-  font-size: 0.86rem;
-  line-height: 1;
+  width: 0.96rem;
+  height: 0.96rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(180deg);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sectionCollapseCaret[data-collapsed="true"] {
+  transform: rotate(0deg);
+}
+
+.sectionCollapseCaretIcon {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: currentColor;
+}
+
+.sectionBodyContainer {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin-top: 0.65rem;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 170ms ease,
+    visibility 0ms linear;
+}
+
+.sectionBodyContainerCollapsed {
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 140ms ease,
+    visibility 0ms linear 220ms;
+}
+
+.sectionBodyContainerInner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sectionBody {
@@ -109,6 +212,10 @@
 }
 
 .sectionDragging .sectionHeaderDragArea {
+  cursor: grabbing;
+}
+
+.sectionDragging .sectionMarginDragHandle {
   cursor: grabbing;
 }
 
@@ -264,7 +371,7 @@
   aspect-ratio: 4 / 3;
   border: 1px solid rgba(34, 24, 15, 0.2);
   border-radius: 0;
-  background: #fffdf7;
+  background: var(--surface-secondary-lightest);
   overflow: hidden;
   box-shadow:
     0 10px 24px rgba(45, 34, 20, 0.2),
