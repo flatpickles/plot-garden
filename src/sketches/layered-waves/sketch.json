@@ -1,0 +1,9 @@
+{
+  "slug": "layered-waves",
+  "title": "Layered Waves",
+  "description": "Top-level SVG groups become independent plot layers.",
+  "tags": ["svg", "layers"],
+  "order": 2,
+  "thumbnail": "thumbnail.png",
+  "className": "LayeredWaves"
+}

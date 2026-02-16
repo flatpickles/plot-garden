@@ -1,0 +1,9 @@
+{
+  "slug": "inset-square",
+  "title": "Inset Square Study",
+  "description": "Nested frames with optional guide diagonals.",
+  "tags": ["geometry", "starter"],
+  "order": 1,
+  "thumbnail": "thumbnail.png",
+  "className": "InsetSquare"
+}
