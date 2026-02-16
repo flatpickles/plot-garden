@@ -496,6 +496,10 @@
   cursor: not-allowed;
 }
 
+.fullWidthButton {
+  width: 100%;
+}
+
 .controlsRow {
   display: flex;
   gap: 0.45rem;

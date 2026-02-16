@@ -1,7 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_PANEL_SECTION_WIDTH } from "@/lib/ui/panelSectionPreferences";
+import {
+  DEFAULT_HELP_SECTION_ORDER,
+  DEFAULT_PANEL_SECTION_WIDTH,
+} from "@/lib/ui/panelSectionPreferences";
 import { SketchWorkbench } from "@/lib/ui/SketchWorkbench";
 
 vi.mock("next/navigation", () => {
@@ -84,7 +87,7 @@ describe("SketchWorkbench", () => {
         "plotter",
       ]);
       expect(parsed.modes?.default?.collapsed?.renderControls).toBe(true);
-      expect(parsed.modes?.help?.order).toEqual(["helpOverview"]);
+      expect(parsed.modes?.help?.order).toEqual(DEFAULT_HELP_SECTION_ORDER);
       expect(parsed.modes?.settings?.order).toEqual(["panelSettings"]);
       expect(parsed.sidebarWidth).toBe(DEFAULT_PANEL_SECTION_WIDTH);
     });
@@ -95,7 +98,7 @@ describe("SketchWorkbench", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Collapse Panel Settings section" }),
+      await screen.findByRole("button", { name: "Collapse Reset Plot Garden section" }),
     );
 
     await waitFor(() => {
@@ -110,6 +113,63 @@ describe("SketchWorkbench", () => {
         };
       };
       expect(parsed.modes?.settings?.collapsed?.panelSettings).toBe(true);
+    });
+  });
+
+  it("requires a confirmation click before resetting panel layout", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Collapse Render Controls section" }),
+    );
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
+      expect(raw).toBeTruthy();
+
+      const parsed = JSON.parse(raw ?? "{}") as {
+        modes?: {
+          default?: {
+            collapsed?: Record<string, boolean>;
+          };
+        };
+      };
+      expect(parsed.modes?.default?.collapsed?.renderControls).toBe(true);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+    fireEvent.click(await screen.findByText("Reset Plot Garden", { selector: "button" }));
+    expect(screen.getByText("Reset Plot Garden", { selector: "button" })).toBeInTheDocument();
+
+    {
+      const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
+      expect(raw).toBeTruthy();
+      const parsed = JSON.parse(raw ?? "{}") as {
+        modes?: {
+          default?: {
+            collapsed?: Record<string, boolean>;
+          };
+        };
+      };
+      expect(parsed.modes?.default?.collapsed?.renderControls).toBe(true);
+    }
+
+    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Reset Plot Garden", { selector: "button" })).toBeInTheDocument();
+
+      const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
+      expect(raw).toBeTruthy();
+
+      const parsed = JSON.parse(raw ?? "{}") as {
+        modes?: {
+          default?: {
+            collapsed?: Record<string, boolean>;
+          };
+        };
+      };
+      expect(parsed.modes?.default?.collapsed?.renderControls).toBe(false);
     });
   });
 });

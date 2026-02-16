@@ -459,6 +459,7 @@ export function SketchWorkbench({
   const [renderedControlPanelView, setRenderedControlPanelView] =
     useState<ControlPanelView>("default");
   const [controlPanelContentVisible, setControlPanelContentVisible] = useState(true);
+  const [confirmResetPlotGarden, setConfirmResetPlotGarden] = useState(false);
   const controlPanelSwapTimeoutRef = useRef<number | null>(null);
 
   const clearLandingTimers = useCallback(() => {
@@ -665,6 +666,12 @@ export function SketchWorkbench({
   useEffect(() => {
     return () => clearControlPanelSwapTimer();
   }, [clearControlPanelSwapTimer]);
+
+  useEffect(() => {
+    if (controlPanelView !== "settings") {
+      setConfirmResetPlotGarden(false);
+    }
+  }, [controlPanelView]);
 
   const performRender = useCallback(
     async (
@@ -971,6 +978,16 @@ export function SketchWorkbench({
   const onResetPanelLayout = () => {
     setPanelSectionModes(clonePanelSectionModePreferences(DEFAULT_PANEL_SECTION_MODE_PREFERENCES));
     setSidebarWidth(clampPanelWidth(DEFAULT_PANEL_SECTION_WIDTH));
+  };
+
+  const onResetPlotGarden = () => {
+    if (!confirmResetPlotGarden) {
+      setConfirmResetPlotGarden(true);
+      return;
+    }
+
+    onResetPanelLayout();
+    setConfirmResetPlotGarden(false);
   };
 
   const onSectionDragStart = (event: DragStartEvent) => {
@@ -1566,7 +1583,7 @@ export function SketchWorkbench({
     Record<PanelSectionId, { title: string; body: ReactNode }>
   > = {
     panelSettings: {
-      title: "Panel Settings",
+      title: "Reset Plot Garden",
       body: (
         <>
           <p className={styles.status}>
@@ -1574,11 +1591,13 @@ export function SketchWorkbench({
           </p>
           <div className={styles.controlsRow}>
             <button
-              className={styles.secondaryButton}
-              onClick={onResetPanelLayout}
+              className={`${styles.fullWidthButton} ${
+                confirmResetPlotGarden ? styles.dangerButton : styles.secondaryButton
+              }`}
+              onClick={onResetPlotGarden}
               type="button"
             >
-              Reset panel layout
+              Reset Plot Garden
             </button>
           </div>
         </>
