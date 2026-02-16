@@ -277,3 +277,19 @@
     min-height: 45vh;
   }
 }
+
+@media (min-width: 981px) {
+  .shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .sidebar,
+  .previewPane {
+    min-height: 0;
+  }
+
+  .sidebar {
+    overscroll-behavior: contain;
+  }
+}
