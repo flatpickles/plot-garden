@@ -1513,13 +1513,15 @@ export function SketchWorkbench({
         </header>
 
         <div className={styles.canvasViewport}>
-          <div className={styles.canvasWrap} style={canvasWrapStyle}>
-            {previewSvgMarkup ? (
-              <div
-                className={styles.previewSvg}
-                dangerouslySetInnerHTML={{ __html: previewSvgMarkup }}
-              />
-            ) : null}
+          <div className={styles.canvasStage}>
+            <div className={styles.canvasWrap} style={canvasWrapStyle}>
+              {previewSvgMarkup ? (
+                <div
+                  className={styles.previewSvg}
+                  dangerouslySetInnerHTML={{ __html: previewSvgMarkup }}
+                />
+              ) : null}
+            </div>
           </div>
 
           <footer className={styles.canvasFooter}>
