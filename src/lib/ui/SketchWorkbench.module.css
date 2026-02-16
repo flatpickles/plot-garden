@@ -1,5 +1,7 @@
 .shell {
   --surface-secondary-lightest: rgba(255, 255, 255, 0.72);
+  background-color: var(--paper);
+  overscroll-behavior: none;
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--panel-section-width, 340px) 1px 1fr;
@@ -12,9 +14,11 @@
 
 .sidebar {
   backdrop-filter: blur(6px);
-  background: rgba(255, 250, 243, 0.9);
+  background: var(--paper);
   padding: 1rem;
   overflow-y: auto;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
@@ -533,9 +537,5 @@
   .sidebar,
   .previewPane {
     min-height: 0;
-  }
-
-  .sidebar {
-    overscroll-behavior: contain;
   }
 }
