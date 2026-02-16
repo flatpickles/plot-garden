@@ -26,8 +26,8 @@ export const DEFAULT_PANEL_SECTION_WIDTH = 340;
 
 export const DEFAULT_PANEL_SECTION_ORDER: PanelSectionId[] = [
   "sketches",
-  "params",
   "layers",
+  "params",
   "plotter",
 ];
 export const DEFAULT_HELP_SECTION_ORDER: PanelSectionId[] = ["aboutPlotGarden", "helpOverview"];
@@ -45,9 +45,9 @@ export const PANEL_SECTION_ORDER_BY_VIEW: Record<ControlPanelView, PanelSectionI
 export const DEFAULT_PANEL_SECTION_COLLAPSED: Record<PanelSectionId, boolean> = {
   sketches: false,
   renderControls: false,
-  params: false,
-  layers: false,
-  plotter: false,
+  params: true,
+  layers: true,
+  plotter: true,
   helpOverview: false,
   aboutPlotGarden: false,
   panelSettings: false,

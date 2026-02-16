@@ -27,6 +27,7 @@ describe("SketchWorkbench", () => {
 
   it("shows unavailable plotter control when Web Serial is unsupported", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand Plotter section" }));
 
     expect(await screen.findByRole("button", { name: "Unavailable" })).toBeInTheDocument();
   });
@@ -54,7 +55,7 @@ describe("SketchWorkbench", () => {
 
   it("persists panel section state to localStorage", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
-    fireEvent.click(screen.getByRole("button", { name: "Collapse Layers section" }));
+    fireEvent.click(screen.getByRole("button", { name: "Collapse Sketches section" }));
 
     await waitFor(() => {
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
@@ -79,11 +80,11 @@ describe("SketchWorkbench", () => {
       };
       expect(parsed.modes?.default?.order).toEqual([
         "sketches",
-        "params",
         "layers",
+        "params",
         "plotter",
       ]);
-      expect(parsed.modes?.default?.collapsed?.layers).toBe(true);
+      expect(parsed.modes?.default?.collapsed?.sketches).toBe(true);
       expect(parsed.modes?.help?.order).toEqual(DEFAULT_HELP_SECTION_ORDER);
       expect(parsed.modes?.settings?.order).toEqual(DEFAULT_SETTINGS_SECTION_ORDER);
       expect(parsed.sidebarWidth).toBe(DEFAULT_PANEL_SECTION_WIDTH);

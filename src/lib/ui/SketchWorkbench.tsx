@@ -1102,7 +1102,7 @@ export function SketchWorkbench({
       ),
     },
     params: {
-      title: `${selectedEntry.manifest.title} Params`,
+      title: "Sketch Parameters",
       body: (
         <>
           {schemaEntries.map(([key, definition]) => (
