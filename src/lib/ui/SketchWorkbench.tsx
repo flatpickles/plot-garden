@@ -66,6 +66,7 @@ import {
 import {
   DEFAULT_PANEL_SECTION_COLLAPSED,
   DEFAULT_PANEL_SECTION_ORDER,
+  DEFAULT_PANEL_SECTION_WIDTH,
   PANEL_SECTION_PREFS_COOKIE_KEY,
   PANEL_SECTION_PREFS_STORAGE_KEY,
   type PanelSectionId,
@@ -78,6 +79,7 @@ import {
 import styles from "./SketchWorkbench.module.css";
 
 const PLOTTER_CONFIG_STORAGE_KEY = "vibe-plotter.plotter-config";
+const MIN_PANEL_SECTION_WIDTH = 280;
 const SECTION_DROP_TRAVEL_MS = 280;
 const SECTION_DROP_FADE_MS = 220;
 const SECTION_ACTIVE_FADE_IN_MS = 120;
@@ -413,6 +415,9 @@ export function SketchWorkbench({
   const [panelSectionPrefsReady, setPanelSectionPrefsReady] = useState(
     seededPanelPreferences !== null,
   );
+  const [sidebarWidth, setSidebarWidth] = useState(
+    seededPanelPreferences?.sidebarWidth ?? DEFAULT_PANEL_SECTION_WIDTH,
+  );
   const sectionSensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -420,6 +425,13 @@ export function SketchWorkbench({
       },
     }),
   );
+  const panelResizeStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const [isResizingPanel, setIsResizingPanel] = useState(false);
   const landingRevealTimeoutRef = useRef<number | null>(null);
   const landingResetTimeoutRef = useRef<number | null>(null);
 
@@ -434,6 +446,68 @@ export function SketchWorkbench({
     }
   }, []);
 
+  const clampPanelWidth = useCallback((nextWidth: number) => {
+    const shell = shellRef.current;
+    if (!shell) return Math.max(1, Math.round(nextWidth));
+
+    const maxWidth = Math.max(0, Math.floor(shell.clientWidth / 2));
+    if (maxWidth === 0) return 0;
+
+    const minimumWidth = Math.min(MIN_PANEL_SECTION_WIDTH, maxWidth);
+    const normalized = Math.round(nextWidth);
+    return Math.max(minimumWidth, Math.min(normalized, maxWidth));
+  }, []);
+
+  const fitPanelWidthToViewport = useCallback(() => {
+    setSidebarWidth((currentWidth) => clampPanelWidth(currentWidth));
+  }, [clampPanelWidth]);
+
+  const onPanelResizePointerMove = useCallback(
+    (event: PointerEvent) => {
+      const currentResize = panelResizeStateRef.current;
+      if (!currentResize || currentResize.pointerId !== event.pointerId) return;
+
+      const targetWidth = currentResize.startWidth + (event.clientX - currentResize.startX);
+      setSidebarWidth(clampPanelWidth(targetWidth));
+    },
+    [clampPanelWidth],
+  );
+
+  const onPanelResizePointerUp = useCallback(
+    (event: PointerEvent) => {
+      const currentResize = panelResizeStateRef.current;
+      if (!currentResize || currentResize.pointerId !== event.pointerId) return;
+
+      panelResizeStateRef.current = null;
+      setIsResizingPanel(false);
+      window.removeEventListener("pointermove", onPanelResizePointerMove);
+      window.removeEventListener("pointercancel", onPanelResizePointerUp);
+      window.removeEventListener("pointerup", onPanelResizePointerUp);
+    },
+    [onPanelResizePointerMove],
+  );
+
+  const onPanelResizePointerDown = useCallback(
+    (event: PointerEvent) => {
+      const shell = shellRef.current;
+      if (!shell) return;
+
+      event.preventDefault();
+      const normalizedWidth = clampPanelWidth(sidebarWidth);
+      setSidebarWidth(normalizedWidth);
+      panelResizeStateRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startWidth: normalizedWidth,
+      };
+      setIsResizingPanel(true);
+      window.addEventListener("pointermove", onPanelResizePointerMove);
+      window.addEventListener("pointercancel", onPanelResizePointerUp);
+      window.addEventListener("pointerup", onPanelResizePointerUp);
+    },
+    [clampPanelWidth, onPanelResizePointerMove, onPanelResizePointerUp, sidebarWidth],
+  );
+
   const transportRef = useRef<AxiDrawWebSerialTransport | null>(null);
   if (!transportRef.current) {
     transportRef.current = new AxiDrawWebSerialTransport();
@@ -447,6 +521,25 @@ export function SketchWorkbench({
     setDirectPlottingAvailable(supportsDirectPlotting());
     setSerialAvailable(supportsWebSerial());
   }, []);
+
+  useEffect(() => {
+    fitPanelWidthToViewport();
+  }, [fitPanelWidthToViewport]);
+
+  useEffect(() => {
+    window.addEventListener("resize", fitPanelWidthToViewport);
+    return () => window.removeEventListener("resize", fitPanelWidthToViewport);
+  }, [fitPanelWidthToViewport]);
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("pointermove", onPanelResizePointerMove);
+      window.removeEventListener("pointercancel", onPanelResizePointerUp);
+      window.removeEventListener("pointerup", onPanelResizePointerUp);
+      panelResizeStateRef.current = null;
+      setIsResizingPanel(false);
+    };
+  }, [onPanelResizePointerMove, onPanelResizePointerUp]);
 
   useEffect(() => {
     setSelectedSlug(initialSlug);
@@ -469,6 +562,7 @@ export function SketchWorkbench({
       const safePreferences = sanitizePanelSectionPreferences(stored);
       setPanelSectionOrder(safePreferences.order);
       setCollapsedSections(safePreferences.collapsed);
+      setSidebarWidth(safePreferences.sidebarWidth);
     }
     setPanelSectionPrefsReady(true);
   }, [panelSectionPrefsReady]);
@@ -483,15 +577,13 @@ export function SketchWorkbench({
     const nextPreferences: PanelSectionPreferences = {
       order: panelSectionOrder,
       collapsed: collapsedSections,
+      sidebarWidth,
     };
-    writeLocalStorageJSON(PANEL_SECTION_PREFS_STORAGE_KEY, {
-      order: panelSectionOrder,
-      collapsed: collapsedSections,
-    });
+    writeLocalStorageJSON(PANEL_SECTION_PREFS_STORAGE_KEY, nextPreferences);
     document.cookie = `${PANEL_SECTION_PREFS_COOKIE_KEY}=${serializePanelSectionPreferencesCookie(
       nextPreferences,
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
-  }, [collapsedSections, panelSectionOrder, panelSectionPrefsReady]);
+  }, [collapsedSections, panelSectionOrder, panelSectionPrefsReady, sidebarWidth]);
 
   useEffect(() => {
     return () => clearLandingTimers();
@@ -577,6 +669,12 @@ export function SketchWorkbench({
         "--canvas-aspect": String(canvasAspectRatio),
       }) as CSSProperties,
     [canvasAspectRatio],
+  );
+  const shellStyle = useMemo<CSSProperties & { ["--panel-section-width"]?: string }>(
+    () => ({
+      "--panel-section-width": `${sidebarWidth}px`,
+    }),
+    [sidebarWidth],
   );
 
   const filteredSketches = useMemo(() => {
@@ -1236,7 +1334,7 @@ export function SketchWorkbench({
   };
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} ref={shellRef} style={shellStyle}>
       <aside className={styles.sidebar}>
         <DndContext
           id="panel-sections-dnd"
@@ -1286,6 +1384,16 @@ export function SketchWorkbench({
           </DragOverlay>
         </DndContext>
       </aside>
+
+      <div
+        className={`${styles.resizeHandle} ${
+          isResizingPanel ? styles.resizeHandleActive : ""
+        }`}
+        role="separator"
+        aria-label="Resize control panel"
+        aria-orientation="vertical"
+        onPointerDown={onPanelResizePointerDown}
+      />
 
       <main className={styles.previewPane}>
         <header className={styles.previewHeader}>

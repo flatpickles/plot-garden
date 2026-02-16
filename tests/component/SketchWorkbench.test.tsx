@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DEFAULT_PANEL_SECTION_WIDTH } from "@/lib/ui/panelSectionPreferences";
 import { SketchWorkbench } from "@/lib/ui/SketchWorkbench";
 
 vi.mock("next/navigation", () => {
@@ -72,6 +73,7 @@ describe("SketchWorkbench", () => {
         "plotter",
       ]);
       expect(parsed.collapsed?.renderControls).toBe(true);
+      expect(parsed.sidebarWidth).toBe(DEFAULT_PANEL_SECTION_WIDTH);
     });
   });
 });

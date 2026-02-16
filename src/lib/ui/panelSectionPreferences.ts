@@ -8,10 +8,12 @@ export type PanelSectionId =
 export type PanelSectionPreferences = {
   order: PanelSectionId[];
   collapsed: Record<PanelSectionId, boolean>;
+  sidebarWidth: number;
 };
 
 export const PANEL_SECTION_PREFS_STORAGE_KEY = "vibe-plotter.panel-section-preferences";
 export const PANEL_SECTION_PREFS_COOKIE_KEY = "vibe-plotter.panel-section-preferences";
+export const DEFAULT_PANEL_SECTION_WIDTH = 340;
 
 export const DEFAULT_PANEL_SECTION_ORDER: PanelSectionId[] = [
   "sketches",
@@ -71,11 +73,17 @@ export function sanitizePanelSectionCollapsed(
   return next;
 }
 
+export function sanitizePanelSectionWidth(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_PANEL_SECTION_WIDTH;
+  return Math.max(1, Math.round(value));
+}
+
 export function sanitizePanelSectionPreferences(value: unknown): PanelSectionPreferences {
   const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   return {
     order: sanitizePanelSectionOrder(record.order),
     collapsed: sanitizePanelSectionCollapsed(record.collapsed),
+    sidebarWidth: sanitizePanelSectionWidth(record.sidebarWidth),
   };
 }
 

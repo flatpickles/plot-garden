@@ -2,7 +2,7 @@
   --surface-secondary-lightest: rgba(255, 255, 255, 0.72);
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: var(--panel-section-width, 340px) 1px 1fr;
   background:
     radial-gradient(circle at 10% 10%, rgba(255, 198, 134, 0.25), transparent 45%),
     radial-gradient(circle at 80% 20%, rgba(255, 234, 201, 0.4), transparent 50%),
@@ -11,13 +11,36 @@
 }
 
 .sidebar {
-  border-right: 1px solid rgba(40, 30, 20, 0.14);
   backdrop-filter: blur(6px);
   background: rgba(255, 250, 243, 0.9);
   padding: 1rem;
   overflow-y: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.resizeHandle {
+  position: relative;
+  cursor: col-resize;
+  background: rgba(40, 30, 20, 0.14);
+  transition: background-color 120ms ease;
+  touch-action: none;
+  user-select: none;
+}
+
+.resizeHandleActive {
+  background: rgba(122, 83, 42, 0.48);
+}
+
+.resizeHandle::before {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+  pointer-events: auto;
+}
+
+.resizeHandleActive::before {
+  inset: 0 -4px;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -494,6 +517,10 @@
 
   .previewPane {
     min-height: 45vh;
+  }
+
+  .resizeHandle {
+    display: none;
   }
 }
 

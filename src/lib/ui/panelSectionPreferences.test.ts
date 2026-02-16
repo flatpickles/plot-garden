@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_PANEL_SECTION_WIDTH,
   parsePanelSectionPreferencesCookie,
   serializePanelSectionPreferencesCookie,
 } from "@/lib/ui/panelSectionPreferences";
@@ -16,6 +17,7 @@ describe("panelSectionPreferences cookie helpers", () => {
         layers: true,
         plotter: true,
       },
+      sidebarWidth: 420,
     });
 
     expect(parsePanelSectionPreferencesCookie(encoded)).toEqual({
@@ -27,6 +29,7 @@ describe("panelSectionPreferences cookie helpers", () => {
         layers: true,
         plotter: true,
       },
+      sidebarWidth: 420,
     });
   });
 
@@ -50,6 +53,7 @@ describe("panelSectionPreferences cookie helpers", () => {
         layers: true,
         plotter: false,
       },
+      sidebarWidth: DEFAULT_PANEL_SECTION_WIDTH,
     });
   });
 });
