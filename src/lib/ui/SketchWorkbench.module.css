@@ -1,5 +1,7 @@
 .shell {
   --surface-secondary-lightest: rgba(255, 255, 255, 0.72);
+  --accent-green: #1f5a45;
+  --accent-green-strong: #174737;
   background-color: var(--paper);
   overscroll-behavior: none;
   min-height: 100vh;
@@ -385,6 +387,18 @@
   padding: 0.48rem 0.58rem;
   background: #fffdf7;
   font-size: 0.92rem;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.searchInput:focus-visible,
+.numberInput:focus-visible,
+.selectInput:focus-visible,
+.textInput:focus-visible {
+  border-color: var(--accent-green);
+  outline: none;
+  box-shadow: none;
 }
 
 .sketchButton {
@@ -452,8 +466,15 @@
 
 .renderButton,
 .actionButton {
-  background: #1f4035;
+  background: var(--accent-green);
   color: #f7f3ee;
+}
+
+.renderButton:hover:not(:disabled),
+.actionButton:hover:not(:disabled),
+.renderButton:focus-visible,
+.actionButton:focus-visible {
+  background: var(--accent-green-strong);
 }
 
 .secondaryButton {
@@ -524,29 +545,32 @@
 }
 
 .canvasViewport {
+  --canvas-footer-reserve: 94px;
   width: 100%;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-}
-
-.canvasStage {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 1rem;
   container-type: size;
 }
 
 .canvasWrap {
   --canvas-aspect: 4 / 3;
+  flex: 0 0 auto;
   aspect-ratio: var(--canvas-aspect);
-  inline-size: min(100cqw, calc(100cqh * var(--canvas-aspect)));
-  block-size: min(100cqh, calc(100cqw / var(--canvas-aspect)));
+  inline-size: min(
+    100cqw,
+    calc(
+      max(0px, calc(100cqh - var(--canvas-footer-reserve))) * var(--canvas-aspect)
+    )
+  );
+  block-size: min(
+    max(0px, calc(100cqh - var(--canvas-footer-reserve))),
+    calc(100cqw / var(--canvas-aspect))
+  );
   max-inline-size: 100%;
   max-block-size: 100%;
   border: 1px solid rgba(34, 24, 15, 0.2);
@@ -605,21 +629,21 @@
 }
 
 .inlineLink {
-  color: #1f5a45;
+  color: var(--accent-green);
   text-decoration: none;
   text-underline-offset: 0.12em;
   transition: color 120ms ease;
 }
 
 .inlineLink:hover {
-  color: #174737;
+  color: var(--accent-green-strong);
   text-decoration: underline;
 }
 
 .inlineLink:focus-visible {
-  color: #174737;
+  color: var(--accent-green-strong);
   text-decoration: underline;
-  outline: 2px solid #7a532a;
+  outline: 2px solid var(--accent-green);
   outline-offset: 2px;
   border-radius: 2px;
 }
