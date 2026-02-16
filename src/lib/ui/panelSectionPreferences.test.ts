@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_PANEL_SECTION_COLLAPSED,
+  DEFAULT_PANEL_SECTION_MODE_PREFERENCES,
   DEFAULT_PANEL_SECTION_WIDTH,
   parsePanelSectionPreferencesCookie,
   serializePanelSectionPreferencesCookie,
@@ -9,31 +11,65 @@ import {
 describe("panelSectionPreferences cookie helpers", () => {
   it("round-trips encoded cookie preferences", () => {
     const encoded = serializePanelSectionPreferencesCookie({
-      order: ["plotter", "sketches", "renderControls", "params", "layers"],
-      collapsed: {
-        sketches: false,
-        renderControls: true,
-        params: false,
-        layers: true,
-        plotter: true,
+      modes: {
+        default: {
+          order: ["plotter", "sketches", "renderControls", "params", "layers"],
+          collapsed: {
+            ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            renderControls: true,
+            layers: true,
+            plotter: true,
+          },
+        },
+        help: {
+          order: ["helpOverview"],
+          collapsed: {
+            ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            helpOverview: true,
+          },
+        },
+        settings: {
+          order: ["panelSettings"],
+          collapsed: {
+            ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            panelSettings: true,
+          },
+        },
       },
       sidebarWidth: 420,
     });
 
     expect(parsePanelSectionPreferencesCookie(encoded)).toEqual({
-      order: ["plotter", "sketches", "renderControls", "params", "layers"],
-      collapsed: {
-        sketches: false,
-        renderControls: true,
-        params: false,
-        layers: true,
-        plotter: true,
+      modes: {
+        default: {
+          order: ["plotter", "sketches", "renderControls", "params", "layers"],
+          collapsed: {
+            ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            renderControls: true,
+            layers: true,
+            plotter: true,
+          },
+        },
+        help: {
+          order: ["helpOverview"],
+          collapsed: {
+            ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            helpOverview: true,
+          },
+        },
+        settings: {
+          order: ["panelSettings"],
+          collapsed: {
+            ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            panelSettings: true,
+          },
+        },
       },
       sidebarWidth: 420,
     });
   });
 
-  it("sanitizes malformed cookie preferences", () => {
+  it("sanitizes malformed legacy cookie preferences", () => {
     const encoded = encodeURIComponent(
       JSON.stringify({
         order: ["layers", "nope", "plotter"],
@@ -45,13 +81,16 @@ describe("panelSectionPreferences cookie helpers", () => {
     );
 
     expect(parsePanelSectionPreferencesCookie(encoded)).toEqual({
-      order: ["layers", "plotter", "sketches", "renderControls", "params"],
-      collapsed: {
-        sketches: false,
-        renderControls: false,
-        params: false,
-        layers: true,
-        plotter: false,
+      modes: {
+        default: {
+          order: ["layers", "plotter", "sketches", "renderControls", "params"],
+          collapsed: {
+            ...DEFAULT_PANEL_SECTION_COLLAPSED,
+            layers: true,
+          },
+        },
+        help: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.help,
+        settings: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.settings,
       },
       sidebarWidth: DEFAULT_PANEL_SECTION_WIDTH,
     });

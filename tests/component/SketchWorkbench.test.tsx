@@ -60,19 +60,56 @@ describe("SketchWorkbench", () => {
       expect(raw).toBeTruthy();
 
       const parsed = JSON.parse(raw ?? "{}") as {
-        order?: string[];
-        collapsed?: Record<string, boolean>;
+        modes?: {
+          default?: {
+            order?: string[];
+            collapsed?: Record<string, boolean>;
+          };
+          help?: {
+            order?: string[];
+            collapsed?: Record<string, boolean>;
+          };
+          settings?: {
+            order?: string[];
+            collapsed?: Record<string, boolean>;
+          };
+        };
         sidebarWidth?: number;
       };
-      expect(parsed.order).toEqual([
+      expect(parsed.modes?.default?.order).toEqual([
         "sketches",
         "renderControls",
         "params",
         "layers",
         "plotter",
       ]);
-      expect(parsed.collapsed?.renderControls).toBe(true);
+      expect(parsed.modes?.default?.collapsed?.renderControls).toBe(true);
+      expect(parsed.modes?.help?.order).toEqual(["helpOverview"]);
+      expect(parsed.modes?.settings?.order).toEqual(["panelSettings"]);
       expect(parsed.sidebarWidth).toBe(DEFAULT_PANEL_SECTION_WIDTH);
+    });
+  });
+
+  it("persists settings panel section state to localStorage", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Collapse Panel Settings section" }),
+    );
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
+      expect(raw).toBeTruthy();
+
+      const parsed = JSON.parse(raw ?? "{}") as {
+        modes?: {
+          settings?: {
+            collapsed?: Record<string, boolean>;
+          };
+        };
+      };
+      expect(parsed.modes?.settings?.collapsed?.panelSettings).toBe(true);
     });
   });
 });

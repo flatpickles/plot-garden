@@ -28,7 +28,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CircleHelp, Settings, X } from "lucide-react";
+import { CircleHelp, Play, Settings, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { sketchRegistry } from "@/generated/sketch-registry";
@@ -64,13 +64,15 @@ import {
   type SketchRenderSeed,
 } from "@/lib/ui/sketchRenderBootstrap";
 import {
-  DEFAULT_PANEL_SECTION_COLLAPSED,
-  DEFAULT_PANEL_SECTION_ORDER,
+  DEFAULT_PANEL_SECTION_MODE_PREFERENCES,
   DEFAULT_PANEL_SECTION_WIDTH,
   PANEL_SECTION_PREFS_COOKIE_KEY,
   PANEL_SECTION_PREFS_STORAGE_KEY,
+  type ControlPanelView,
   type PanelSectionId,
+  type PanelSectionModePreferences,
   type PanelSectionPreferences,
+  clonePanelSectionModePreferences,
   isPanelSectionId,
   sanitizePanelSectionPreferences,
   serializePanelSectionPreferencesCookie,
@@ -196,8 +198,6 @@ type SidebarSection = {
   body: ReactNode;
 };
 
-type ControlPanelView = "default" | "help" | "settings";
-
 function SectionCollapseCaret({
   collapsed,
 }: {
@@ -209,13 +209,12 @@ function SectionCollapseCaret({
       className={styles.sectionCollapseCaret}
       data-collapsed={collapsed ? "true" : "false"}
     >
-      <svg
+      <Play
         className={styles.sectionCollapseCaretIcon}
-        viewBox="0 0 16 12"
-        focusable="false"
-      >
-        <path d="M2.25 3.1c0-.6.49-1.1 1.1-1.1h9.3c.61 0 1.1.5 1.1 1.1 0 .26-.1.52-.27.72L8.74 9.04a1.02 1.02 0 0 1-1.48 0L2.52 3.82a1.09 1.09 0 0 1-.27-.72Z" />
-      </svg>
+        size={13}
+        strokeWidth={1.75}
+        fill="currentColor"
+      />
     </span>
   );
 }
@@ -417,12 +416,13 @@ export function SketchWorkbench({
   const seededPanelPreferences = initialPanelSectionPreferences
     ? sanitizePanelSectionPreferences(initialPanelSectionPreferences)
     : null;
-  const [panelSectionOrder, setPanelSectionOrder] = useState<PanelSectionId[]>(
-    seededPanelPreferences?.order ?? DEFAULT_PANEL_SECTION_ORDER,
+  const [panelSectionModes, setPanelSectionModes] = useState<
+    Record<ControlPanelView, PanelSectionModePreferences>
+  >(() =>
+    clonePanelSectionModePreferences(
+      seededPanelPreferences?.modes ?? DEFAULT_PANEL_SECTION_MODE_PREFERENCES,
+    ),
   );
-  const [collapsedSections, setCollapsedSections] = useState<
-    Record<PanelSectionId, boolean>
-  >(seededPanelPreferences?.collapsed ?? DEFAULT_PANEL_SECTION_COLLAPSED);
   const [draggingSectionId, setDraggingSectionId] = useState<PanelSectionId | null>(
     null,
   );
@@ -631,8 +631,7 @@ export function SketchWorkbench({
     );
     if (stored && typeof stored === "object") {
       const safePreferences = sanitizePanelSectionPreferences(stored);
-      setPanelSectionOrder(safePreferences.order);
-      setCollapsedSections(safePreferences.collapsed);
+      setPanelSectionModes(clonePanelSectionModePreferences(safePreferences.modes));
       setSidebarWidth(safePreferences.sidebarWidth);
     }
     setPanelSectionPrefsReady(true);
@@ -646,15 +645,14 @@ export function SketchWorkbench({
     if (!panelSectionPrefsReady) return;
 
     const nextPreferences: PanelSectionPreferences = {
-      order: panelSectionOrder,
-      collapsed: collapsedSections,
+      modes: panelSectionModes,
       sidebarWidth,
     };
     writeLocalStorageJSON(PANEL_SECTION_PREFS_STORAGE_KEY, nextPreferences);
     document.cookie = `${PANEL_SECTION_PREFS_COOKIE_KEY}=${serializePanelSectionPreferencesCookie(
       nextPreferences,
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
-  }, [collapsedSections, panelSectionOrder, panelSectionPrefsReady, sidebarWidth]);
+  }, [panelSectionModes, panelSectionPrefsReady, sidebarWidth]);
 
   useEffect(() => {
     return () => clearLandingTimers();
@@ -957,15 +955,21 @@ export function SketchWorkbench({
   }, [canShowPlotControls, plotterControlsMounted, clearPlotterControlsHideTimer]);
 
   const onToggleSection = (sectionId: PanelSectionId) => {
-    setCollapsedSections((current) => ({
+    const mode = renderedControlPanelView;
+    setPanelSectionModes((current) => ({
       ...current,
-      [sectionId]: !current[sectionId],
+      [mode]: {
+        ...current[mode],
+        collapsed: {
+          ...current[mode].collapsed,
+          [sectionId]: !current[mode].collapsed[sectionId],
+        },
+      },
     }));
   };
 
   const onResetPanelLayout = () => {
-    setPanelSectionOrder(DEFAULT_PANEL_SECTION_ORDER);
-    setCollapsedSections(DEFAULT_PANEL_SECTION_COLLAPSED);
+    setPanelSectionModes(clonePanelSectionModePreferences(DEFAULT_PANEL_SECTION_MODE_PREFERENCES));
     setSidebarWidth(clampPanelWidth(DEFAULT_PANEL_SECTION_WIDTH));
   };
 
@@ -983,6 +987,7 @@ export function SketchWorkbench({
   };
 
   const onSectionDragEnd = (event: DragEndEvent) => {
+    const mode = renderedControlPanelView;
     const sourceSectionId = isPanelSectionId(event.active.id) ? event.active.id : null;
     const targetSectionId =
       event.over && isPanelSectionId(event.over.id) ? event.over.id : null;
@@ -1019,11 +1024,19 @@ export function SketchWorkbench({
       return;
     }
 
-    setPanelSectionOrder((current) => {
-      const sourceIndex = current.indexOf(sourceSectionId);
-      const targetIndex = current.indexOf(targetSectionId);
+    setPanelSectionModes((current) => {
+      const modeState = current[mode];
+      const sourceIndex = modeState.order.indexOf(sourceSectionId);
+      const targetIndex = modeState.order.indexOf(targetSectionId);
       if (sourceIndex < 0 || targetIndex < 0) return current;
-      return arrayMove(current, sourceIndex, targetIndex);
+
+      return {
+        ...current,
+        [mode]: {
+          ...modeState,
+          order: arrayMove(modeState.order, sourceIndex, targetIndex),
+        },
+      };
     });
   };
 
@@ -1035,9 +1048,8 @@ export function SketchWorkbench({
     string,
     SketchParamDefinition,
   ][];
-  const sidebarSections: Record<
-    PanelSectionId,
-    { title: string; body: ReactNode }
+  const defaultSidebarSections: Partial<
+    Record<PanelSectionId, { title: string; body: ReactNode }>
   > = {
     sketches: {
       title: "Sketches",
@@ -1497,104 +1509,116 @@ export function SketchWorkbench({
     },
   };
 
+  const helpSidebarSections: Partial<Record<PanelSectionId, { title: string; body: ReactNode }>> =
+    {
+      helpOverview: {
+        title: "Quick Help",
+        body: (
+          <>
+            <p className={styles.status}>
+              Configure sketches in this panel, then render and send plots from the Plotter
+              section.
+            </p>
+            <ul className={styles.controlPanelInfoList}>
+              <li>Drag section edges to reorder cards.</li>
+              <li>Use manual render mode when tweaking lots of parameters.</li>
+              <li>Hover a layer to isolate it in the preview.</li>
+              <li>Connect your AxiDraw before starting a plot session.</li>
+            </ul>
+          </>
+        ),
+      },
+    };
+
+  const settingsSidebarSections: Partial<
+    Record<PanelSectionId, { title: string; body: ReactNode }>
+  > = {
+    panelSettings: {
+      title: "Panel Settings",
+      body: (
+        <>
+          <p className={styles.status}>
+            Reset section order, collapsed state, and sidebar width back to defaults.
+          </p>
+          <div className={styles.controlsRow}>
+            <button
+              className={styles.secondaryButton}
+              onClick={onResetPanelLayout}
+              type="button"
+            >
+              Reset panel layout
+            </button>
+          </div>
+        </>
+      ),
+    },
+  };
+
+  const sectionsByView: Record<
+    ControlPanelView,
+    Partial<Record<PanelSectionId, { title: string; body: ReactNode }>>
+  > = {
+    default: defaultSidebarSections,
+    help: helpSidebarSections,
+    settings: settingsSidebarSections,
+  };
+
+  const renderedMode = renderedControlPanelView;
+  const renderedModeSections = sectionsByView[renderedMode];
+  const renderedModeState = panelSectionModes[renderedMode];
+  const renderedModeOrder = renderedModeState.order;
+  const renderedModeCollapsed = renderedModeState.collapsed;
+  const draggingSection = draggingSectionId ? renderedModeSections[draggingSectionId] : null;
+
   const helpOpen = controlPanelView === "help";
   const settingsOpen = controlPanelView === "settings";
-  const controlPanelBody =
-    renderedControlPanelView === "default" ? (
-      <DndContext
-        id="panel-sections-dnd"
-        modifiers={[restrictSectionDragToVerticalAxis]}
-        collisionDetection={closestCenter}
-        onDragCancel={onSectionDragCancel}
-        onDragEnd={onSectionDragEnd}
-        onDragStart={onSectionDragStart}
-        sensors={sectionSensors}
-      >
-        <SortableContext items={panelSectionOrder} strategy={verticalListSortingStrategy}>
-          {panelSectionOrder.map((sectionId) => {
-            const section = sidebarSections[sectionId];
-            return (
-              <SortablePanelSection
-                collapsed={collapsedSections[sectionId]}
-                draggingSource={draggingSectionId === sectionId}
-                key={sectionId}
-                landingPhase={
-                  landingSection && landingSection.id === sectionId ? landingSection.phase : null
-                }
-                onToggleSection={onToggleSection}
-                section={{
-                  id: sectionId,
-                  title: section.title,
-                  body: section.body,
-                }}
-              />
-            );
-          })}
-        </SortableContext>
-        <DragOverlay adjustScale={false} dropAnimation={SECTION_DROP_ANIMATION}>
-          {draggingSectionId ? (
-            <SectionDragOverlay
-              collapsed={collapsedSections[draggingSectionId]}
+  const controlPanelBody = (
+    <DndContext
+      id="panel-sections-dnd"
+      modifiers={[restrictSectionDragToVerticalAxis]}
+      collisionDetection={closestCenter}
+      onDragCancel={onSectionDragCancel}
+      onDragEnd={onSectionDragEnd}
+      onDragStart={onSectionDragStart}
+      sensors={sectionSensors}
+    >
+      <SortableContext items={renderedModeOrder} strategy={verticalListSortingStrategy}>
+        {renderedModeOrder.map((sectionId) => {
+          const section = renderedModeSections[sectionId];
+          if (!section) return null;
+
+          return (
+            <SortablePanelSection
+              collapsed={renderedModeCollapsed[sectionId]}
+              draggingSource={draggingSectionId === sectionId}
+              key={sectionId}
+              landingPhase={
+                landingSection && landingSection.id === sectionId ? landingSection.phase : null
+              }
+              onToggleSection={onToggleSection}
               section={{
-                id: draggingSectionId,
-                title: sidebarSections[draggingSectionId].title,
-                body: sidebarSections[draggingSectionId].body,
+                id: sectionId,
+                title: section.title,
+                body: section.body,
               }}
             />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-    ) : renderedControlPanelView === "help" ? (
-      <div className={styles.controlPanelStack}>
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Quick Help</h3>
-          </div>
-          <div className={styles.sectionBodyContainer}>
-            <div className={styles.sectionBodyContainerInner}>
-              <div className={styles.sectionBody}>
-                <p className={styles.status}>
-                  Configure sketches in this panel, then render and send plots from the Plotter
-                  section.
-                </p>
-                <ul className={styles.controlPanelInfoList}>
-                  <li>Drag section edges to reorder cards.</li>
-                  <li>Use manual render mode when tweaking lots of parameters.</li>
-                  <li>Hover a layer to isolate it in the preview.</li>
-                  <li>Connect your AxiDraw before starting a plot session.</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    ) : (
-      <div className={styles.controlPanelStack}>
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Panel Settings</h3>
-          </div>
-          <div className={styles.sectionBodyContainer}>
-            <div className={styles.sectionBodyContainerInner}>
-              <div className={styles.sectionBody}>
-                <p className={styles.status}>
-                  Reset section order, collapsed state, and sidebar width back to defaults.
-                </p>
-                <div className={styles.controlsRow}>
-                  <button
-                    className={styles.secondaryButton}
-                    onClick={onResetPanelLayout}
-                    type="button"
-                  >
-                    Reset panel layout
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    );
+          );
+        })}
+      </SortableContext>
+      <DragOverlay adjustScale={false} dropAnimation={SECTION_DROP_ANIMATION}>
+        {draggingSectionId && draggingSection ? (
+          <SectionDragOverlay
+            collapsed={renderedModeCollapsed[draggingSectionId]}
+            section={{
+              id: draggingSectionId,
+              title: draggingSection.title,
+              body: draggingSection.body,
+            }}
+          />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
 
   return (
     <div className={styles.shell} ref={shellRef} style={shellStyle}>
