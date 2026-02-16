@@ -1443,6 +1443,7 @@ export function SketchWorkbench({
   return (
     <div className={styles.shell} ref={shellRef} style={shellStyle}>
       <aside className={styles.sidebar}>
+        <h2 className={styles.controlPanelTitle}>Plot Garden</h2>
         <DndContext
           id="panel-sections-dnd"
           modifiers={[restrictSectionDragToVerticalAxis]}
@@ -1507,9 +1508,6 @@ export function SketchWorkbench({
         <header className={styles.previewHeader}>
           <div>
             <h1 className={styles.previewTitle}>{selectedEntry.manifest.title}</h1>
-            <p className={styles.previewDescription}>
-              {selectedEntry.manifest.description}
-            </p>
           </div>
           <p className={styles.muted}>/{selectedEntry.manifest.slug}</p>
         </header>
@@ -1523,18 +1521,24 @@ export function SketchWorkbench({
               />
             ) : null}
           </div>
-        </div>
 
-        {jobPlan ? (
-          <div className={styles.status}>
-            {jobPlan.stats.layerCount} layers, {jobPlan.stats.strokeCount} strokes, draw{" "}
-            {prettyDistance(jobPlan.stats.drawDistance, draftContext.units)}, travel{" "}
-            {prettyDistance(jobPlan.stats.travelDistance, draftContext.units)}.
-            {jobPlan.stats.outOfBoundsPoints > 0
-              ? ` ${jobPlan.stats.outOfBoundsPoints} points exceed ${plotterConfig.model} bounds.`
-              : ""}
-          </div>
-        ) : null}
+          <footer className={styles.canvasFooter}>
+            <p className={styles.previewDescription}>
+              {selectedEntry.manifest.description}
+            </p>
+
+            {jobPlan ? (
+              <p className={styles.canvasFooterStats}>
+                {jobPlan.stats.layerCount} layers, {jobPlan.stats.strokeCount} strokes, draw{" "}
+                {prettyDistance(jobPlan.stats.drawDistance, draftContext.units)}, travel{" "}
+                {prettyDistance(jobPlan.stats.travelDistance, draftContext.units)}.
+                {jobPlan.stats.outOfBoundsPoints > 0
+                  ? ` ${jobPlan.stats.outOfBoundsPoints} points exceed ${plotterConfig.model} bounds.`
+                  : ""}
+              </p>
+            ) : null}
+          </footer>
+        </div>
       </main>
 
       {confirmSendOpen && jobPlan ? (
