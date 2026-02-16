@@ -1,6 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  type DropAnimation,
+  type DragEndEvent,
+  type DragStartEvent,
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 
 import { sketchRegistry } from "@/generated/sketch-registry";
@@ -30,6 +56,17 @@ import {
   readLocalStorageJSON,
   writeLocalStorageJSON,
 } from "@/lib/utils/localStorage";
+import {
+  DEFAULT_PANEL_SECTION_COLLAPSED,
+  DEFAULT_PANEL_SECTION_ORDER,
+  PANEL_SECTION_PREFS_COOKIE_KEY,
+  PANEL_SECTION_PREFS_STORAGE_KEY,
+  type PanelSectionId,
+  type PanelSectionPreferences,
+  isPanelSectionId,
+  sanitizePanelSectionPreferences,
+  serializePanelSectionPreferencesCookie,
+} from "@/lib/ui/panelSectionPreferences";
 
 import styles from "./SketchWorkbench.module.css";
 
@@ -41,6 +78,74 @@ const DEFAULT_CONTEXT: SketchRenderContext = {
 };
 
 const PLOTTER_CONFIG_STORAGE_KEY = "vibe-plotter.plotter-config";
+const SECTION_DROP_TRAVEL_MS = 280;
+const SECTION_DROP_FADE_MS = 220;
+const SECTION_ACTIVE_FADE_IN_MS = 120;
+const SECTION_DROP_ANIMATION_MS = SECTION_DROP_TRAVEL_MS + SECTION_DROP_FADE_MS;
+const SECTION_REAL_FADE_COMPLETE_MS = SECTION_DROP_TRAVEL_MS + SECTION_ACTIVE_FADE_IN_MS;
+
+function toTranslationTransformString({
+  x,
+  y,
+}: {
+  x: number;
+  y: number;
+}): string {
+  return `translate3d(${x}px, ${y}px, 0)`;
+}
+
+const SECTION_DROP_ANIMATION: DropAnimation = {
+  duration: SECTION_DROP_ANIMATION_MS,
+  // Keep timeline linear so the travel/fade boundary is exactly SECTION_DROP_TRAVEL_MS.
+  easing: "linear",
+  // Keep full opacity while traveling, then fade out after landing.
+  keyframes: ({ transform }) => [
+    {
+      offset: 0,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      transform: toTranslationTransformString(transform.initial),
+      opacity: "1",
+      boxShadow: "0 14px 34px rgba(45, 34, 20, 0.22), 0 4px 10px rgba(45, 34, 20, 0.16)",
+    },
+    {
+      offset: SECTION_DROP_TRAVEL_MS / SECTION_DROP_ANIMATION_MS,
+      easing: "linear",
+      transform: toTranslationTransformString(transform.final),
+      opacity: "1",
+      boxShadow: "0 14px 34px rgba(45, 34, 20, 0.22), 0 4px 10px rgba(45, 34, 20, 0.16)",
+    },
+    {
+      offset: 1,
+      transform: toTranslationTransformString(transform.final),
+      opacity: "0",
+      boxShadow: "0 4px 10px rgba(45, 34, 20, 0), 0 2px 6px rgba(45, 34, 20, 0)",
+    },
+  ],
+  sideEffects: ({ dragOverlay }) => {
+    const overlayStyle = dragOverlay.node.style;
+
+    const previousOverlayBorderRadius = overlayStyle.borderRadius;
+    const previousOverlayOverflow = overlayStyle.overflow;
+    const previousOverlayBackgroundClip = overlayStyle.backgroundClip;
+    const previousOverlayBackfaceVisibility = overlayStyle.backfaceVisibility;
+    const previousOverlayTransformOrigin = overlayStyle.transformOrigin;
+
+    // Keep rounded clipping during drop so no sharp corners appear.
+    overlayStyle.borderRadius = "12px";
+    overlayStyle.overflow = "hidden";
+    overlayStyle.backgroundClip = "padding-box";
+    overlayStyle.backfaceVisibility = "hidden";
+    overlayStyle.transformOrigin = "center center";
+
+    return () => {
+      overlayStyle.borderRadius = previousOverlayBorderRadius;
+      overlayStyle.overflow = previousOverlayOverflow;
+      overlayStyle.backgroundClip = previousOverlayBackgroundClip;
+      overlayStyle.backfaceVisibility = previousOverlayBackfaceVisibility;
+      overlayStyle.transformOrigin = previousOverlayTransformOrigin;
+    };
+  },
+};
 
 function shallowSerialize(value: unknown): string {
   if (typeof value !== "object" || value === null) {
@@ -56,10 +161,115 @@ function prettyDistance(inches: number, units: Unit): string {
   return `${(inches * 25.4).toFixed(1)} mm`;
 }
 
+type SidebarSection = {
+  id: PanelSectionId;
+  title: string;
+  body: ReactNode;
+};
+
+function SectionDragOverlay({
+  collapsed,
+  section,
+}: {
+  collapsed: boolean;
+  section: SidebarSection;
+}) {
+  return (
+    <section className={`${styles.section} ${styles.sectionOverlay}`}>
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionHeaderDragArea}>
+          <h2 className={styles.sectionTitle}>
+            <span className={styles.sectionOverlayTitle}>{section.title}</span>
+          </h2>
+        </div>
+        <span
+          className={`${styles.sectionCollapseToggle} ${styles.sectionCollapseToggleGhost}`}
+          aria-hidden
+        >
+          <span className={styles.sectionCollapseCaret}>
+            {collapsed ? "▾" : "▴"}
+          </span>
+        </span>
+      </div>
+      {!collapsed ? <div className={styles.sectionBody}>{section.body}</div> : null}
+    </section>
+  );
+}
+
+function SortablePanelSection({
+  collapsed,
+  draggingSource,
+  landingPhase,
+  onToggleSection,
+  section,
+}: {
+  collapsed: boolean;
+  draggingSource: boolean;
+  landingPhase: "hold" | "reveal" | null;
+  onToggleSection: (sectionId: PanelSectionId) => void;
+  section: SidebarSection;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({
+      id: section.id,
+    });
+  const opacityTransition =
+    landingPhase === "reveal"
+      ? `opacity ${SECTION_ACTIVE_FADE_IN_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
+      : "opacity 0ms linear";
+  const combinedTransition = [transition, opacityTransition]
+    .filter((value) => Boolean(value))
+    .join(", ");
+  const dimmed = draggingSource || landingPhase === "hold";
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: combinedTransition || undefined,
+    opacity: dimmed ? 0.3 : 1,
+  };
+  const contentId = `panel-section-${section.id}`;
+
+  return (
+    <section
+      ref={setNodeRef}
+      style={style}
+      className={`${styles.section} ${isDragging ? styles.sectionDragging : ""}`}
+    >
+      <div className={styles.sectionHeader}>
+        <div
+          className={styles.sectionHeaderDragArea}
+          {...attributes}
+          {...listeners}
+        >
+          <h2 className={styles.sectionTitle}>{section.title}</h2>
+        </div>
+        <button
+          aria-controls={contentId}
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? "Expand" : "Collapse"} ${section.title} section`}
+          className={styles.sectionCollapseToggle}
+          onClick={() => onToggleSection(section.id)}
+          type="button"
+        >
+          <span className={styles.sectionCollapseCaret} aria-hidden>
+            {collapsed ? "▾" : "▴"}
+          </span>
+        </button>
+      </div>
+      {!collapsed ? (
+        <div className={styles.sectionBody} id={contentId}>
+          {section.body}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function SketchWorkbench({
   initialSlug,
+  initialPanelSectionPreferences,
 }: {
   initialSlug: string;
+  initialPanelSectionPreferences?: PanelSectionPreferences | null;
 }) {
   const router = useRouter();
 
@@ -98,6 +308,45 @@ export function SketchWorkbench({
 
   const [plotterConfig, setPlotterConfig] =
     useState<PlotterConfig>(DEFAULT_PLOTTER_CONFIG);
+  const seededPanelPreferences = initialPanelSectionPreferences
+    ? sanitizePanelSectionPreferences(initialPanelSectionPreferences)
+    : null;
+  const [panelSectionOrder, setPanelSectionOrder] = useState<PanelSectionId[]>(
+    seededPanelPreferences?.order ?? DEFAULT_PANEL_SECTION_ORDER,
+  );
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<PanelSectionId, boolean>
+  >(seededPanelPreferences?.collapsed ?? DEFAULT_PANEL_SECTION_COLLAPSED);
+  const [draggingSectionId, setDraggingSectionId] = useState<PanelSectionId | null>(
+    null,
+  );
+  const [landingSection, setLandingSection] = useState<{
+    id: PanelSectionId;
+    phase: "hold" | "reveal";
+  } | null>(null);
+  const [panelSectionPrefsReady, setPanelSectionPrefsReady] = useState(
+    seededPanelPreferences !== null,
+  );
+  const sectionSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+  );
+  const landingRevealTimeoutRef = useRef<number | null>(null);
+  const landingResetTimeoutRef = useRef<number | null>(null);
+
+  const clearLandingTimers = useCallback(() => {
+    if (landingRevealTimeoutRef.current !== null) {
+      window.clearTimeout(landingRevealTimeoutRef.current);
+      landingRevealTimeoutRef.current = null;
+    }
+    if (landingResetTimeoutRef.current !== null) {
+      window.clearTimeout(landingResetTimeoutRef.current);
+      landingResetTimeoutRef.current = null;
+    }
+  }, []);
 
   const transportRef = useRef<AxiDrawWebSerialTransport | null>(null);
   if (!transportRef.current) {
@@ -124,8 +373,43 @@ export function SketchWorkbench({
   }, []);
 
   useEffect(() => {
+    if (panelSectionPrefsReady) return;
+
+    const stored = readLocalStorageJSON<unknown>(
+      PANEL_SECTION_PREFS_STORAGE_KEY,
+      null,
+    );
+    if (stored && typeof stored === "object") {
+      const safePreferences = sanitizePanelSectionPreferences(stored);
+      setPanelSectionOrder(safePreferences.order);
+      setCollapsedSections(safePreferences.collapsed);
+    }
+    setPanelSectionPrefsReady(true);
+  }, [panelSectionPrefsReady]);
+
+  useEffect(() => {
     writeLocalStorageJSON(PLOTTER_CONFIG_STORAGE_KEY, plotterConfig);
   }, [plotterConfig]);
+
+  useEffect(() => {
+    if (!panelSectionPrefsReady) return;
+
+    const nextPreferences: PanelSectionPreferences = {
+      order: panelSectionOrder,
+      collapsed: collapsedSections,
+    };
+    writeLocalStorageJSON(PANEL_SECTION_PREFS_STORAGE_KEY, {
+      order: panelSectionOrder,
+      collapsed: collapsedSections,
+    });
+    document.cookie = `${PANEL_SECTION_PREFS_COOKIE_KEY}=${serializePanelSectionPreferencesCookie(
+      nextPreferences,
+    )}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }, [collapsedSections, panelSectionOrder, panelSectionPrefsReady]);
+
+  useEffect(() => {
+    return () => clearLandingTimers();
+  }, [clearLandingTimers]);
 
   const performRender = useCallback(
     async (
@@ -297,6 +581,71 @@ export function SketchWorkbench({
     await transportRef.current?.cancel(setPlotterStatus);
   };
 
+  const onToggleSection = (sectionId: PanelSectionId) => {
+    setCollapsedSections((current) => ({
+      ...current,
+      [sectionId]: !current[sectionId],
+    }));
+  };
+
+  const onSectionDragStart = (event: DragStartEvent) => {
+    clearLandingTimers();
+    setLandingSection(null);
+    const sourceSectionId = isPanelSectionId(event.active.id) ? event.active.id : null;
+    setDraggingSectionId(sourceSectionId);
+  };
+
+  const onSectionDragCancel = () => {
+    clearLandingTimers();
+    setLandingSection(null);
+    setDraggingSectionId(null);
+  };
+
+  const onSectionDragEnd = (event: DragEndEvent) => {
+    const sourceSectionId = isPanelSectionId(event.active.id) ? event.active.id : null;
+    const targetSectionId =
+      event.over && isPanelSectionId(event.over.id) ? event.over.id : null;
+    setDraggingSectionId(null);
+
+    clearLandingTimers();
+    if (sourceSectionId) {
+      setLandingSection({
+        id: sourceSectionId,
+        phase: "hold",
+      });
+
+      landingRevealTimeoutRef.current = window.setTimeout(() => {
+        setLandingSection((current) =>
+          current && current.id === sourceSectionId
+            ? {
+                id: sourceSectionId,
+                phase: "reveal",
+              }
+            : current,
+        );
+        landingRevealTimeoutRef.current = null;
+      }, SECTION_DROP_TRAVEL_MS);
+
+      landingResetTimeoutRef.current = window.setTimeout(() => {
+        setLandingSection((current) =>
+          current && current.id === sourceSectionId ? null : current,
+        );
+        landingResetTimeoutRef.current = null;
+      }, SECTION_REAL_FADE_COMPLETE_MS);
+    }
+
+    if (!sourceSectionId || !targetSectionId || sourceSectionId === targetSectionId) {
+      return;
+    }
+
+    setPanelSectionOrder((current) => {
+      const sourceIndex = current.indexOf(sourceSectionId);
+      const targetIndex = current.indexOf(targetSectionId);
+      if (sourceIndex < 0 || targetIndex < 0) return current;
+      return arrayMove(current, sourceIndex, targetIndex);
+    });
+  };
+
   if (!selectedEntry || !sketch) {
     return <div className={styles.shell}>No sketches found.</div>;
   }
@@ -305,12 +654,14 @@ export function SketchWorkbench({
     string,
     SketchParamDefinition,
   ][];
-
-  return (
-    <div className={styles.shell}>
-      <aside className={styles.sidebar}>
-        <section className={styles.section}>
-          <h2>Sketches</h2>
+  const sidebarSections: Record<
+    PanelSectionId,
+    { title: string; body: ReactNode }
+  > = {
+    sketches: {
+      title: "Sketches",
+      body: (
+        <>
           <input
             className={styles.searchInput}
             type="search"
@@ -337,10 +688,13 @@ export function SketchWorkbench({
               );
             })}
           </div>
-        </section>
-
-        <section className={styles.section}>
-          <h2>Render Controls</h2>
+        </>
+      ),
+    },
+    renderControls: {
+      title: "Render Controls",
+      body: (
+        <>
           <div className={styles.row}>
             <label>
               <span className={styles.label}>Width ({draftContext.units})</span>
@@ -461,10 +815,13 @@ export function SketchWorkbench({
           </div>
 
           {renderError ? <p className={styles.status}>Render error: {renderError}</p> : null}
-        </section>
-
-        <section className={styles.section}>
-          <h2>{selectedEntry.manifest.title} Params</h2>
+        </>
+      ),
+    },
+    params: {
+      title: `${selectedEntry.manifest.title} Params`,
+      body: (
+        <>
           {schemaEntries.map(([key, definition]) => (
             <div className={styles.paramItem} key={key}>
               <label>
@@ -501,10 +858,13 @@ export function SketchWorkbench({
               ) : null}
             </div>
           ))}
-        </section>
-
-        <section className={styles.section}>
-          <h2>Layers</h2>
+        </>
+      ),
+    },
+    layers: {
+      title: "Layers",
+      body: (
+        <>
           <div className={styles.radioStack}>
             <label className={styles.inlineControl}>
               <input
@@ -557,10 +917,13 @@ export function SketchWorkbench({
               );
             })}
           </div>
-        </section>
-
-        <section className={styles.section}>
-          <h2>Plotter</h2>
+        </>
+      ),
+    },
+    plotter: {
+      title: "Plotter",
+      body: (
+        <>
           {!directPlottingAvailable ? (
             <p className={styles.status}>
               {serialAvailable
@@ -755,7 +1118,61 @@ export function SketchWorkbench({
               ? ` (${plotterStatus.sentPackets ?? 0}/${plotterStatus.totalPackets})`
               : ""}
           </p>
-        </section>
+        </>
+      ),
+    },
+  };
+
+  return (
+    <div className={styles.shell}>
+      <aside className={styles.sidebar}>
+        <DndContext
+          id="panel-sections-dnd"
+          collisionDetection={closestCenter}
+          onDragCancel={onSectionDragCancel}
+          onDragEnd={onSectionDragEnd}
+          onDragStart={onSectionDragStart}
+          sensors={sectionSensors}
+        >
+          <SortableContext
+            items={panelSectionOrder}
+            strategy={verticalListSortingStrategy}
+          >
+            {panelSectionOrder.map((sectionId) => {
+              const section = sidebarSections[sectionId];
+              return (
+                <SortablePanelSection
+                  collapsed={collapsedSections[sectionId]}
+                  draggingSource={draggingSectionId === sectionId}
+                  key={sectionId}
+                  landingPhase={
+                    landingSection && landingSection.id === sectionId
+                      ? landingSection.phase
+                      : null
+                  }
+                  onToggleSection={onToggleSection}
+                  section={{
+                    id: sectionId,
+                    title: section.title,
+                    body: section.body,
+                  }}
+                />
+              );
+            })}
+          </SortableContext>
+          <DragOverlay adjustScale={false} dropAnimation={SECTION_DROP_ANIMATION}>
+            {draggingSectionId ? (
+              <SectionDragOverlay
+                collapsed={collapsedSections[draggingSectionId]}
+                section={{
+                  id: draggingSectionId,
+                  title: sidebarSections[draggingSectionId].title,
+                  body: sidebarSections[draggingSectionId].body,
+                }}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </aside>
 
       <main className={styles.previewPane}>
