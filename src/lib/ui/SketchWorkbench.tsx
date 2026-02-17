@@ -469,6 +469,7 @@ export function SketchWorkbench({
     useState<ControlPanelView>("default");
   const [controlPanelContentVisible, setControlPanelContentVisible] = useState(true);
   const [confirmResetPlotGarden, setConfirmResetPlotGarden] = useState(false);
+  const resetPlotGardenButtonRef = useRef<HTMLButtonElement | null>(null);
   const controlPanelSwapTimeoutRef = useRef<number | null>(null);
 
   const clearLandingTimers = useCallback(() => {
@@ -750,6 +751,22 @@ export function SketchWorkbench({
       setConfirmResetPlotGarden(false);
     }
   }, [controlPanelView]);
+
+  useEffect(() => {
+    if (!confirmResetPlotGarden) return;
+
+    const onDocumentPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (resetPlotGardenButtonRef.current?.contains(target)) return;
+      setConfirmResetPlotGarden(false);
+    };
+
+    document.addEventListener("pointerdown", onDocumentPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", onDocumentPointerDown);
+    };
+  }, [confirmResetPlotGarden]);
 
   const performRender = useCallback(
     async (
@@ -1677,6 +1694,7 @@ export function SketchWorkbench({
                 confirmResetPlotGarden ? styles.dangerButton : styles.secondaryButton
               }`}
               onClick={onResetPlotGarden}
+              ref={resetPlotGardenButtonRef}
               type="button"
             >
               Reset Plot Garden

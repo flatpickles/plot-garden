@@ -402,6 +402,16 @@
   box-shadow: none;
 }
 
+.selectInput {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 1.8rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 5.75 8 10.25l4.5-4.5' stroke='%2318120d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.58rem center;
+  background-size: 0.8rem;
+}
+
 .sketchButton {
   width: 100%;
   text-align: left;

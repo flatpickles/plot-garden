@@ -219,6 +219,63 @@ describe("SketchWorkbench", () => {
     });
   });
 
+  it("cancels reset confirmation when clicking outside the reset button", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Collapse Render Controls section" }),
+    );
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
+      expect(raw).toBeTruthy();
+
+      const parsed = JSON.parse(raw ?? "{}") as {
+        modes?: {
+          settings?: {
+            collapsed?: Record<string, boolean>;
+          };
+        };
+      };
+      expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
+    });
+
+    fireEvent.click(await screen.findByText("Reset Plot Garden", { selector: "button" }));
+    fireEvent.pointerDown(document.body);
+    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
+
+    {
+      const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
+      expect(raw).toBeTruthy();
+
+      const parsed = JSON.parse(raw ?? "{}") as {
+        modes?: {
+          settings?: {
+            collapsed?: Record<string, boolean>;
+          };
+        };
+      };
+      expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
+    }
+
+    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
+      expect(raw).toBeTruthy();
+
+      const parsed = JSON.parse(raw ?? "{}") as {
+        modes?: {
+          settings?: {
+            collapsed?: Record<string, boolean>;
+          };
+        };
+      };
+      expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(false);
+    });
+  });
+
   it("starts narrow layout at an even split and uses a horizontal separator", async () => {
     const originalWidth = window.innerWidth;
     const originalHeight = window.innerHeight;
