@@ -5,6 +5,10 @@ import { sketchRegistry } from "@/generated/sketch-registry";
 import { parsePanelSectionPreferencesCookie, PANEL_SECTION_PREFS_COOKIE_KEY } from "@/lib/ui/panelSectionPreferences";
 import { computeSketchInitialRenderState } from "@/lib/ui/sketchRenderBootstrap";
 import { SketchWorkbench } from "@/lib/ui/SketchWorkbench";
+import {
+  parseWorkbenchSessionPreferencesCookie,
+  WORKBENCH_SESSION_COOKIE_KEY,
+} from "@/lib/ui/workbenchSessionPreferences";
 
 export default async function SketchPage({
   params,
@@ -16,12 +20,20 @@ export default async function SketchPage({
   const initialPanelSectionPreferences = parsePanelSectionPreferencesCookie(
     cookieStore.get(PANEL_SECTION_PREFS_COOKIE_KEY)?.value,
   );
+  const initialWorkbenchSessionPreferences = parseWorkbenchSessionPreferencesCookie(
+    cookieStore.get(WORKBENCH_SESSION_COOKIE_KEY)?.value,
+  );
   const match = sketchRegistry.find((entry) => entry.manifest.slug === resolved.slug);
   if (!match) notFound();
-  const initialRenderSeed = await computeSketchInitialRenderState(match);
+  const initialRenderSeed = await computeSketchInitialRenderState(match, {
+    persistedRenderControls: initialWorkbenchSessionPreferences?.renderControls ?? null,
+    persistedParams:
+      initialWorkbenchSessionPreferences?.sketchParamsBySlug[resolved.slug] ?? null,
+  });
 
   return (
     <SketchWorkbench
+      initialWorkbenchSessionPreferences={initialWorkbenchSessionPreferences}
       key={resolved.slug}
       initialPanelSectionPreferences={initialPanelSectionPreferences}
       initialRenderSeed={initialRenderSeed}

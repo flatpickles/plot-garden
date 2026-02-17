@@ -8,6 +8,7 @@ import {
   DEFAULT_PANEL_SECTION_WIDTH,
 } from "@/lib/ui/panelSectionPreferences";
 import { SketchWorkbench } from "@/lib/ui/SketchWorkbench";
+import { WORKBENCH_SESSION_STORAGE_KEY } from "@/lib/ui/workbenchSessionPreferences";
 
 vi.mock("next/navigation", () => {
   return {
@@ -88,7 +89,7 @@ describe("SketchWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close panel settings" }));
 
     const expandParamsButton = screen.queryByRole("button", {
-      name: "Expand Sketch Parameters section",
+      name: "Expand Parameters section",
     });
     if (expandParamsButton) {
       fireEvent.click(expandParamsButton);
@@ -103,7 +104,7 @@ describe("SketchWorkbench", () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
 
     const expandParamsButton = screen.queryByRole("button", {
-      name: "Expand Sketch Parameters section",
+      name: "Expand Parameters section",
     });
     if (expandParamsButton) {
       fireEvent.click(expandParamsButton);
@@ -126,7 +127,7 @@ describe("SketchWorkbench", () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
 
     const expandParamsButton = screen.queryByRole("button", {
-      name: "Expand Sketch Parameters section",
+      name: "Expand Parameters section",
     });
     if (expandParamsButton) {
       fireEvent.click(expandParamsButton);
@@ -158,7 +159,7 @@ describe("SketchWorkbench", () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
 
     const expandParamsButton = screen.queryByRole("button", {
-      name: "Expand Sketch Parameters section",
+      name: "Expand Parameters section",
     });
     if (expandParamsButton) {
       fireEvent.click(expandParamsButton);
@@ -183,6 +184,112 @@ describe("SketchWorkbench", () => {
     await waitFor(() => {
       expect((screen.getAllByRole("spinbutton")[0] as HTMLInputElement).value).toBe(
         defaultValue,
+      );
+    });
+  });
+
+  it("persists render controls to shared workbench session storage", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+    fireEvent.change(await screen.findByLabelText("Render mode"), {
+      target: { value: "manual" },
+    });
+    fireEvent.change(screen.getByLabelText("Canvas width"), {
+      target: { value: "9.5" },
+    });
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
+      expect(raw).toBeTruthy();
+
+      const parsed = JSON.parse(raw ?? "{}") as {
+        renderControls?: { width?: number; renderMode?: string };
+      };
+      expect(parsed.renderControls?.width).toBe(9.5);
+      expect(parsed.renderControls?.renderMode).toBe("manual");
+    });
+  });
+
+  it("persists sketch params per slug between sessions", async () => {
+    const insetRender = render(<SketchWorkbench initialSlug="inset-square" />);
+    const expandInsetParamsButton = screen.queryByRole("button", {
+      name: "Expand Parameters section",
+    });
+    if (expandInsetParamsButton) {
+      fireEvent.click(expandInsetParamsButton);
+    }
+    fireEvent.change(screen.getByLabelText("Inset"), {
+      target: { value: "1.8" },
+    });
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
+      expect(raw).toBeTruthy();
+      const parsed = JSON.parse(raw ?? "{}") as {
+        sketchParamsBySlug?: Record<string, Record<string, number | boolean>>;
+      };
+      expect(parsed.sketchParamsBySlug?.["inset-square"]?.inset).toBe(1.8);
+    });
+
+    insetRender.unmount();
+
+    const wavesRender = render(<SketchWorkbench initialSlug="layered-waves" />);
+    const expandWaveParamsButton = screen.queryByRole("button", {
+      name: "Expand Parameters section",
+    });
+    if (expandWaveParamsButton) {
+      fireEvent.click(expandWaveParamsButton);
+    }
+    fireEvent.change(screen.getByLabelText("Waves"), {
+      target: { value: "12" },
+    });
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
+      expect(raw).toBeTruthy();
+      const parsed = JSON.parse(raw ?? "{}") as {
+        sketchParamsBySlug?: Record<string, Record<string, number | boolean>>;
+      };
+      expect(parsed.sketchParamsBySlug?.["layered-waves"]?.waveCount).toBe(12);
+    });
+
+    wavesRender.unmount();
+
+    render(<SketchWorkbench initialSlug="inset-square" />);
+    const expandInsetParamsAgainButton = screen.queryByRole("button", {
+      name: "Expand Parameters section",
+    });
+    if (expandInsetParamsAgainButton) {
+      fireEvent.click(expandInsetParamsAgainButton);
+    }
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Inset") as HTMLInputElement).value).toBe("1.8");
+    });
+  });
+
+  it("restores saved render controls from shared workbench session storage", async () => {
+    window.localStorage.setItem(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        renderControls: {
+          width: 10.25,
+          height: 7.75,
+          units: "mm",
+          renderMode: "manual",
+        },
+        sketchParamsBySlug: {},
+      }),
+    );
+
+    render(<SketchWorkbench initialSlug="inset-square" />);
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Canvas width") as HTMLInputElement).value).toBe("10.25");
+      expect((screen.getByLabelText("Render mode") as HTMLSelectElement).value).toBe(
+        "manual",
       );
     });
   });
@@ -232,7 +339,7 @@ describe("SketchWorkbench", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Collapse Render Controls section" }),
+      await screen.findByRole("button", { name: "Collapse Render section" }),
     );
 
     await waitFor(() => {
@@ -255,7 +362,7 @@ describe("SketchWorkbench", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Collapse Render Controls section" }),
+      await screen.findByRole("button", { name: "Collapse Render section" }),
     );
 
     await waitFor(() => {
@@ -272,8 +379,8 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     });
 
-    fireEvent.click(await screen.findByText("Reset Plot Garden", { selector: "button" }));
-    expect(screen.getByText("Reset Plot Garden", { selector: "button" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("Reset", { selector: "button" }));
+    expect(screen.getByText("Reset", { selector: "button" })).toBeInTheDocument();
 
     {
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
@@ -288,10 +395,10 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     }
 
-    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
+    fireEvent.click(screen.getByText("Reset", { selector: "button" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Reset Plot Garden", { selector: "button" })).toBeInTheDocument();
+      expect(screen.getByText("Reset", { selector: "button" })).toBeInTheDocument();
 
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
       expect(raw).toBeTruthy();
@@ -312,7 +419,7 @@ describe("SketchWorkbench", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Collapse Render Controls section" }),
+      await screen.findByRole("button", { name: "Collapse Render section" }),
     );
 
     await waitFor(() => {
@@ -329,9 +436,9 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     });
 
-    fireEvent.click(await screen.findByText("Reset Plot Garden", { selector: "button" }));
+    fireEvent.click(await screen.findByText("Reset", { selector: "button" }));
     fireEvent.pointerDown(document.body);
-    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
+    fireEvent.click(screen.getByText("Reset", { selector: "button" }));
 
     {
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
@@ -347,7 +454,7 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     }
 
-    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
+    fireEvent.click(screen.getByText("Reset", { selector: "button" }));
 
     await waitFor(() => {
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
@@ -361,6 +468,48 @@ describe("SketchWorkbench", () => {
         };
       };
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(false);
+    });
+  });
+
+  it("clears workbench and plotter persistence when resetting plot garden", async () => {
+    window.localStorage.setItem(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        renderControls: {
+          width: 10.25,
+          height: 7.75,
+          units: "mm",
+          renderMode: "manual",
+        },
+        sketchParamsBySlug: {
+          "inset-square": {
+            inset: 1.8,
+          },
+        },
+      }),
+    );
+    window.localStorage.setItem(
+      "plot-garden.plotter-config",
+      JSON.stringify({
+        model: "A3",
+        speedPenDown: 50,
+        speedPenUp: 50,
+        penUpDelayMs: 250,
+        penDownDelayMs: 250,
+        repeatCount: 2,
+      }),
+    );
+
+    render(<SketchWorkbench initialSlug="inset-square" />);
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+    fireEvent.click(await screen.findByText("Reset", { selector: "button" }));
+    fireEvent.click(screen.getByText("Reset", { selector: "button" }));
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY)).toBeNull();
+      expect(window.localStorage.getItem("plot-garden.plotter-config")).toBeNull();
+      expect((screen.getByLabelText("Canvas width") as HTMLInputElement).value).toBe("8");
+      expect((screen.getByLabelText("Render mode") as HTMLSelectElement).value).toBe("live");
     });
   });
 

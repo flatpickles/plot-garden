@@ -49,4 +49,32 @@ describe("computeSketchInitialRenderState", () => {
     expect(seed.seededJobPlan).toBeNull();
     expect(seed.draftParams).toEqual({ size: 1 });
   });
+
+  it("applies persisted render controls and coerces persisted params", async () => {
+    const target = sketchRegistry.find((entry) => entry.manifest.slug === "inset-square");
+    if (!target) throw new Error("Missing inset-square sketch");
+
+    const seed = await computeSketchInitialRenderState(target, {
+      persistedRenderControls: {
+        width: 9.5,
+        height: 7.25,
+        units: "mm",
+        renderMode: "manual",
+      },
+      persistedParams: {
+        inset: 10,
+        ringCount: 3.4,
+        showDiagonals: false,
+      },
+    });
+
+    expect(seed.draftContext).toEqual({ width: 9.5, height: 7.25, units: "mm" });
+    expect(seed.renderMode).toBe("manual");
+    expect(seed.draftParams).toEqual({
+      inset: 4,
+      ringCount: 3,
+      showDiagonals: false,
+    });
+    expect(seed.renderedParams).toEqual(seed.draftParams);
+  });
 });

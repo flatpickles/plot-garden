@@ -77,6 +77,15 @@ import {
   sanitizePanelSectionPreferences,
   serializePanelSectionPreferencesCookie,
 } from "@/lib/ui/panelSectionPreferences";
+import {
+  WORKBENCH_SESSION_COOKIE_KEY,
+  WORKBENCH_SESSION_STORAGE_KEY,
+  createDefaultWorkbenchSessionPreferences,
+  isDefaultWorkbenchSessionPreferences,
+  sanitizeWorkbenchSessionPreferences,
+  serializeWorkbenchSessionPreferencesCookie,
+  type WorkbenchSessionPreferences,
+} from "@/lib/ui/workbenchSessionPreferences";
 
 import styles from "./SketchWorkbench.module.css";
 
@@ -189,6 +198,16 @@ function shallowSerialize(value: unknown): string {
 
   const keys = Object.keys(value).sort();
   return JSON.stringify(value, keys);
+}
+
+function removeLocalStorageValue(key: string): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures in private/incognito modes.
+  }
 }
 
 function prettyDistance(inches: number, units: Unit): string {
@@ -353,10 +372,12 @@ function SortablePanelSection({
 export function SketchWorkbench({
   initialSlug,
   initialPanelSectionPreferences,
+  initialWorkbenchSessionPreferences,
   initialRenderSeed,
 }: {
   initialSlug: string;
   initialPanelSectionPreferences?: PanelSectionPreferences | null;
+  initialWorkbenchSessionPreferences?: WorkbenchSessionPreferences | null;
   initialRenderSeed?: SketchRenderSeed;
 }) {
   const router = useRouter();
@@ -380,22 +401,43 @@ export function SketchWorkbench({
     const defaults = sketch.getDefaultParams() as Record<string, SketchParamValue>;
     return sketch.coerceParams(defaults) as Record<string, SketchParamValue>;
   }, [sketch]);
+  const seededWorkbenchSessionPreferences = initialWorkbenchSessionPreferences
+    ? sanitizeWorkbenchSessionPreferences(initialWorkbenchSessionPreferences)
+    : null;
+  const seededRenderControls = seededWorkbenchSessionPreferences?.renderControls;
+  const seededParamsForInitialSlug =
+    seededWorkbenchSessionPreferences?.sketchParamsBySlug[initialSlug];
+  const seededInitialDraftParams = sketch
+    ? (sketch.coerceParams(
+        (seededParamsForInitialSlug ?? fallbackDefaults) as Record<string, unknown>,
+      ) as Record<string, SketchParamValue>)
+    : fallbackDefaults;
 
   const [draftParams, setDraftParams] = useState<Record<string, SketchParamValue>>(() =>
-    initialRenderSeed?.draftParams ?? fallbackDefaults,
+    initialRenderSeed?.draftParams ?? seededInitialDraftParams,
   );
   const [renderedParams, setRenderedParams] = useState<
     Record<string, SketchParamValue>
-  >(() => initialRenderSeed?.renderedParams ?? {});
+  >(() => initialRenderSeed?.renderedParams ?? seededInitialDraftParams);
   const [draftContext, setDraftContext] = useState<SketchRenderContext>(
-    () => initialRenderSeed?.draftContext ?? DEFAULT_CONTEXT,
+    () =>
+      initialRenderSeed?.draftContext ?? {
+        width: seededRenderControls?.width ?? DEFAULT_CONTEXT.width,
+        height: seededRenderControls?.height ?? DEFAULT_CONTEXT.height,
+        units: seededRenderControls?.units ?? DEFAULT_CONTEXT.units,
+      },
   );
   const [renderedContext, setRenderedContext] = useState<SketchRenderContext>(
-    () => initialRenderSeed?.renderedContext ?? DEFAULT_CONTEXT,
+    () =>
+      initialRenderSeed?.renderedContext ?? {
+        width: seededRenderControls?.width ?? DEFAULT_CONTEXT.width,
+        height: seededRenderControls?.height ?? DEFAULT_CONTEXT.height,
+        units: seededRenderControls?.units ?? DEFAULT_CONTEXT.units,
+      },
   );
 
   const [renderMode, setRenderMode] = useState<"live" | "manual">(
-    () => initialRenderSeed?.renderMode ?? DEFAULT_RENDER_MODE,
+    () => initialRenderSeed?.renderMode ?? seededRenderControls?.renderMode ?? DEFAULT_RENDER_MODE,
   );
   const [rendering, setRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(
@@ -416,6 +458,13 @@ export function SketchWorkbench({
     useState<PlotterConfig>(
       () => initialRenderSeed?.plotterConfig ?? DEFAULT_PLOTTER_CONFIG,
     );
+  const [workbenchSessionPreferences, setWorkbenchSessionPreferences] =
+    useState<WorkbenchSessionPreferences>(
+      () => seededWorkbenchSessionPreferences ?? createDefaultWorkbenchSessionPreferences(),
+    );
+  const [workbenchSessionPrefsReady, setWorkbenchSessionPrefsReady] = useState(
+    seededWorkbenchSessionPreferences !== null,
+  );
   const [plotterConfigCollapsed, setPlotterConfigCollapsed] = useState(true);
   const seededPanelPreferences = initialPanelSectionPreferences
     ? sanitizePanelSectionPreferences(initialPanelSectionPreferences)
@@ -473,6 +522,7 @@ export function SketchWorkbench({
   const [confirmResetPlotGarden, setConfirmResetPlotGarden] = useState(false);
   const resetPlotGardenButtonRef = useRef<HTMLButtonElement | null>(null);
   const controlPanelSwapTimeoutRef = useRef<number | null>(null);
+  const initialClientRenderSeededRef = useRef(false);
 
   const clearLandingTimers = useCallback(() => {
     if (landingRevealTimeoutRef.current !== null) {
@@ -719,8 +769,51 @@ export function SketchWorkbench({
   }, [panelSectionPrefsReady]);
 
   useEffect(() => {
+    if (plotterConfigEqual(plotterConfig, DEFAULT_PLOTTER_CONFIG)) {
+      removeLocalStorageValue(PLOTTER_CONFIG_STORAGE_KEY);
+      return;
+    }
     writeLocalStorageJSON(PLOTTER_CONFIG_STORAGE_KEY, plotterConfig);
   }, [plotterConfig]);
+
+  useEffect(() => {
+    if (!workbenchSessionPrefsReady || !sketch) return;
+
+    const nextParams = sketch.coerceParams(
+      draftParams as Record<string, unknown>,
+    ) as Record<string, SketchParamValue>;
+    const paramsAtDefaults = shallowSerialize(nextParams) === shallowSerialize(fallbackDefaults);
+
+    setWorkbenchSessionPreferences((current) => {
+      const nextSketchParamsBySlug = { ...current.sketchParamsBySlug };
+      if (paramsAtDefaults) {
+        delete nextSketchParamsBySlug[selectedSlug];
+      } else {
+        nextSketchParamsBySlug[selectedSlug] = nextParams;
+      }
+
+      const nextPreferences = sanitizeWorkbenchSessionPreferences({
+        renderControls: {
+          width: draftContext.width,
+          height: draftContext.height,
+          units: draftContext.units,
+          renderMode,
+        },
+        sketchParamsBySlug: nextSketchParamsBySlug,
+      });
+      return nextPreferences;
+    });
+  }, [
+    draftContext.height,
+    draftContext.units,
+    draftContext.width,
+    draftParams,
+    fallbackDefaults,
+    renderMode,
+    selectedSlug,
+    sketch,
+    workbenchSessionPrefsReady,
+  ]);
 
   useEffect(() => {
     if (!panelSectionPrefsReady) return;
@@ -735,6 +828,21 @@ export function SketchWorkbench({
       nextPreferences,
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, [panelSectionModes, panelSectionPrefsReady, sidebarHeight, sidebarWidth]);
+
+  useEffect(() => {
+    if (!workbenchSessionPrefsReady) return;
+
+    if (isDefaultWorkbenchSessionPreferences(workbenchSessionPreferences)) {
+      removeLocalStorageValue(WORKBENCH_SESSION_STORAGE_KEY);
+      document.cookie = `${WORKBENCH_SESSION_COOKIE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+      return;
+    }
+
+    writeLocalStorageJSON(WORKBENCH_SESSION_STORAGE_KEY, workbenchSessionPreferences);
+    document.cookie = `${WORKBENCH_SESSION_COOKIE_KEY}=${serializeWorkbenchSessionPreferencesCookie(
+      workbenchSessionPreferences,
+    )}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }, [workbenchSessionPreferences, workbenchSessionPrefsReady]);
 
   useEffect(() => {
     return () => clearLandingTimers();
@@ -827,17 +935,59 @@ export function SketchWorkbench({
   );
 
   useEffect(() => {
-    if (!sketch) return;
-    if (initialSeed?.normalizedDocument) return;
+    if (workbenchSessionPrefsReady) return;
 
-    const defaults = fallbackDefaults;
-    setDraftParams(defaults);
-    setRenderedParams(defaults);
-    setDraftContext(DEFAULT_CONTEXT);
-    setRenderedContext(DEFAULT_CONTEXT);
+    const stored = readLocalStorageJSON<unknown>(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      null,
+    );
+    if (!stored || typeof stored !== "object") {
+      setWorkbenchSessionPrefsReady(true);
+      return;
+    }
+
+    const safePreferences = sanitizeWorkbenchSessionPreferences(stored);
+    setWorkbenchSessionPreferences(safePreferences);
+    setWorkbenchSessionPrefsReady(true);
+  }, [workbenchSessionPrefsReady]);
+
+  useEffect(() => {
+    if (initialClientRenderSeededRef.current) return;
+    if (!sketch) return;
+    if (initialSeed?.normalizedDocument && seededWorkbenchSessionPreferences !== null) {
+      initialClientRenderSeededRef.current = true;
+      return;
+    }
+    if (!workbenchSessionPrefsReady) return;
+
+    const nextParams = sketch.coerceParams(
+      (workbenchSessionPreferences.sketchParamsBySlug[selectedSlug] ??
+        fallbackDefaults) as Record<string, unknown>,
+    ) as Record<string, SketchParamValue>;
+    const nextContext = {
+      width: workbenchSessionPreferences.renderControls.width,
+      height: workbenchSessionPreferences.renderControls.height,
+      units: workbenchSessionPreferences.renderControls.units,
+    };
+
+    setDraftParams(nextParams);
+    setRenderedParams(nextParams);
+    setDraftContext(nextContext);
+    setRenderedContext(nextContext);
+    setRenderMode(workbenchSessionPreferences.renderControls.renderMode);
     setHoveredLayerId(null);
-    void performRender(defaults, DEFAULT_CONTEXT);
-  }, [initialSeed?.normalizedDocument, sketch, fallbackDefaults, performRender]);
+    initialClientRenderSeededRef.current = true;
+    void performRender(nextParams, nextContext);
+  }, [
+    fallbackDefaults,
+    initialSeed?.normalizedDocument,
+    performRender,
+    seededWorkbenchSessionPreferences,
+    selectedSlug,
+    sketch,
+    workbenchSessionPreferences,
+    workbenchSessionPrefsReady,
+  ]);
 
   const dirty = useMemo(() => {
     return (
@@ -1132,7 +1282,22 @@ export function SketchWorkbench({
       return;
     }
 
+    const resetContext = { ...DEFAULT_CONTEXT };
+    const resetParams = fallbackDefaults;
     onResetPanelLayout();
+    setDraftParams(resetParams);
+    setRenderedParams(resetParams);
+    setDraftContext(resetContext);
+    setRenderedContext(resetContext);
+    setRenderMode(DEFAULT_RENDER_MODE);
+    setPlotterConfig(DEFAULT_PLOTTER_CONFIG);
+    setWorkbenchSessionPreferences(createDefaultWorkbenchSessionPreferences());
+    setConfirmResetParams(false);
+    setHoveredLayerId(null);
+    removeLocalStorageValue(WORKBENCH_SESSION_STORAGE_KEY);
+    removeLocalStorageValue(PLOTTER_CONFIG_STORAGE_KEY);
+    document.cookie = `${WORKBENCH_SESSION_COOKIE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+    void performRender(resetParams, resetContext);
     setConfirmResetPlotGarden(false);
   };
 
@@ -1248,7 +1413,7 @@ export function SketchWorkbench({
       ),
     },
     params: {
-      title: "Sketch Parameters",
+      title: "Parameters",
       body: (
         <>
           {schemaEntries.map(([key, definition]) => (
@@ -1573,7 +1738,7 @@ export function SketchWorkbench({
   const helpSidebarSections: Partial<Record<PanelSectionId, { title: string; body: ReactNode }>> =
     {
       helpOverview: {
-        title: "Quick Help",
+      title: "Help",
         body: (
           <>
             <p className={styles.status}>
@@ -1590,7 +1755,7 @@ export function SketchWorkbench({
         ),
       },
       aboutPlotGarden: {
-        title: "About Plot Garden",
+      title: "About",
         body: (
           <>
             <p className={styles.status}>
@@ -1627,7 +1792,7 @@ export function SketchWorkbench({
     Record<PanelSectionId, { title: string; body: ReactNode }>
   > = {
     renderControls: {
-      title: "Render Controls",
+      title: "Render",
       body: (
         <>
           <div className={styles.row}>
@@ -1737,11 +1902,11 @@ export function SketchWorkbench({
       ),
     },
     panelSettings: {
-      title: "Reset Plot Garden",
+      title: "Reset",
       body: (
         <>
           <p className={styles.status}>
-            Reset section order, collapsed state, and sidebar width back to defaults.
+            Reset layout, render controls, sketch parameters, and plotter settings back to defaults.
           </p>
           <div className={styles.controlsRow}>
             <button
@@ -1752,7 +1917,7 @@ export function SketchWorkbench({
               ref={resetPlotGardenButtonRef}
               type="button"
             >
-              Reset Plot Garden
+              Reset
             </button>
           </div>
         </>

@@ -11,6 +11,7 @@ import type {
   SketchRenderContext,
   SketchParamValues,
 } from "@/lib/sketch-core/types";
+import type { WorkbenchRenderControls } from "@/lib/ui/workbenchSessionPreferences";
 
 export const DEFAULT_CONTEXT: SketchRenderContext = {
   width: 8,
@@ -35,15 +36,25 @@ export type SketchRenderSeed = {
   renderError?: string | null;
 };
 
+export type ComputeSketchInitialRenderStateOptions = {
+  persistedRenderControls?: WorkbenchRenderControls | null;
+  persistedParams?: Record<string, SketchParamValue> | null;
+};
+
 export async function computeSketchInitialRenderState(
   entry: SketchRegistryEntry,
+  options?: ComputeSketchInitialRenderStateOptions,
 ): Promise<SketchRenderSeed> {
   const sketch = new entry.Sketch();
-  const draftParams = sketch.coerceParams(sketch.getDefaultParams()) as Record<
-    string,
-    SketchParamValue
-  >;
-  const draftContext = { ...DEFAULT_CONTEXT };
+  const draftParams = sketch.coerceParams(
+    (options?.persistedParams ?? sketch.getDefaultParams()) as Record<string, unknown>,
+  ) as Record<string, SketchParamValue>;
+  const draftContext = {
+    width: options?.persistedRenderControls?.width ?? DEFAULT_CONTEXT.width,
+    height: options?.persistedRenderControls?.height ?? DEFAULT_CONTEXT.height,
+    units: options?.persistedRenderControls?.units ?? DEFAULT_CONTEXT.units,
+  };
+  const renderMode = options?.persistedRenderControls?.renderMode ?? DEFAULT_RENDER_MODE;
 
   try {
     const output = await sketch.render(
@@ -65,7 +76,7 @@ export async function computeSketchInitialRenderState(
       renderedContext: { ...draftContext },
       normalizedDocument,
       layerMode: DEFAULT_LAYER_MODE,
-      renderMode: DEFAULT_RENDER_MODE,
+      renderMode,
       plotterConfig: DEFAULT_PLOTTER_CONFIG,
       seededJobPlan,
       renderError: null,
@@ -77,10 +88,10 @@ export async function computeSketchInitialRenderState(
       draftParams,
       renderedParams: fallbackRenderedParams,
       draftContext,
-      renderedContext: { ...DEFAULT_CONTEXT },
+      renderedContext: { ...draftContext },
       normalizedDocument: null,
       layerMode: DEFAULT_LAYER_MODE,
-      renderMode: DEFAULT_RENDER_MODE,
+      renderMode,
       plotterConfig: DEFAULT_PLOTTER_CONFIG,
       seededJobPlan: null,
       renderError: error instanceof Error ? error.message : "Render failed",
