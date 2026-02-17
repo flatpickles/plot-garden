@@ -16,7 +16,7 @@ import {
   type DragStartEvent,
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -493,7 +493,7 @@ export function SketchWorkbench({
     seededPanelPreferences?.sidebarHeight ?? null,
   );
   const sectionSensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 6,
       },

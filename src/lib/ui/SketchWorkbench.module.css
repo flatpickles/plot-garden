@@ -230,6 +230,14 @@
   padding: 0;
 }
 
+@media (hover: none), (pointer: coarse) {
+  .sectionMarginDragHandle,
+  .sectionHeaderDragArea {
+    touch-action: pan-y;
+    cursor: default;
+  }
+}
+
 .sectionHeaderTitleArea {
   flex: 1;
   min-width: 0;
