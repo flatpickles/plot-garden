@@ -1920,7 +1920,7 @@ export function SketchWorkbench({
               ref={resetPlotGardenButtonRef}
               type="button"
             >
-              Reset
+              Reset Plot Garden
             </button>
           </div>
         </>

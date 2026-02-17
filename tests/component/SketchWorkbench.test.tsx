@@ -379,8 +379,8 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     });
 
-    fireEvent.click(await screen.findByText("Reset", { selector: "button" }));
-    expect(screen.getByText("Reset", { selector: "button" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("Reset Plot Garden", { selector: "button" }));
+    expect(screen.getByText("Reset Plot Garden", { selector: "button" })).toBeInTheDocument();
 
     {
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
@@ -395,10 +395,10 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     }
 
-    fireEvent.click(screen.getByText("Reset", { selector: "button" }));
+    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Reset", { selector: "button" })).toBeInTheDocument();
+      expect(screen.getByText("Reset Plot Garden", { selector: "button" })).toBeInTheDocument();
 
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
       expect(raw).toBeTruthy();
@@ -436,9 +436,9 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     });
 
-    fireEvent.click(await screen.findByText("Reset", { selector: "button" }));
+    fireEvent.click(await screen.findByText("Reset Plot Garden", { selector: "button" }));
     fireEvent.pointerDown(document.body);
-    fireEvent.click(screen.getByText("Reset", { selector: "button" }));
+    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
 
     {
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
@@ -454,7 +454,7 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(true);
     }
 
-    fireEvent.click(screen.getByText("Reset", { selector: "button" }));
+    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
 
     await waitFor(() => {
       const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
@@ -502,8 +502,8 @@ describe("SketchWorkbench", () => {
 
     render(<SketchWorkbench initialSlug="inset-square" />);
     fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
-    fireEvent.click(await screen.findByText("Reset", { selector: "button" }));
-    fireEvent.click(screen.getByText("Reset", { selector: "button" }));
+    fireEvent.click(await screen.findByText("Reset Plot Garden", { selector: "button" }));
+    fireEvent.click(screen.getByText("Reset Plot Garden", { selector: "button" }));
 
     await waitFor(() => {
       expect(window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY)).toBeNull();
