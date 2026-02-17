@@ -786,10 +786,17 @@
   .shell {
     grid-template-columns: 1fr;
     grid-template-rows: var(--panel-section-height, calc((100% - 1px) / 2)) 1px 1fr;
-    background:
+    background-color: var(--paper);
+    background-image:
       radial-gradient(circle at 10% 8%, rgba(192, 138, 82, 0.24), transparent 44%),
       radial-gradient(circle at 80% 18%, rgba(241, 207, 162, 0.34), transparent 50%),
-      linear-gradient(140deg, #ebdcc8 0%, #f3e7d7 38%, var(--paper) 100%);
+      linear-gradient(
+        180deg,
+        #ebdcc8 0%,
+        #f3e7d7 38%,
+        rgba(251, 244, 232, 0.6) 68%,
+        rgba(251, 244, 232, 0) 88%
+      );
     height: 100dvh;
     min-height: 100dvh;
     height: 100svh;
