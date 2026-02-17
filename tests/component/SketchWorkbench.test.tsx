@@ -54,6 +54,51 @@ describe("SketchWorkbench", () => {
     });
   });
 
+  it("shows export section in settings", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Collapse Export section" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download SVG" })).toBeInTheDocument();
+  });
+
+  it("shows the params render button only in manual mode", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+    expect(screen.queryByRole("button", { name: "Rendered" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open panel settings" }));
+    const modeSelect = await screen.findByLabelText("Render mode");
+    fireEvent.change(modeSelect, { target: { value: "manual" } });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Rendered" })).toBeDisabled();
+    });
+
+    fireEvent.change(screen.getByLabelText("Canvas width"), {
+      target: { value: "9" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Render" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close panel settings" }));
+
+    const expandParamsButton = screen.queryByRole("button", {
+      name: "Expand Sketch Parameters section",
+    });
+    if (expandParamsButton) {
+      fireEvent.click(expandParamsButton);
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Render" })).toBeEnabled();
+    });
+  });
+
   it("persists panel section state to localStorage", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
     fireEvent.click(screen.getByRole("button", { name: "Collapse Sketches section" }));
@@ -256,7 +301,7 @@ describe("SketchWorkbench", () => {
             collapsed: {},
           },
           settings: {
-            order: ["renderControls", "panelSettings"],
+            order: ["renderControls", "export", "panelSettings"],
             collapsed: {},
           },
         },

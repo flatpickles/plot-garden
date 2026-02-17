@@ -29,10 +29,11 @@ describe("panelSectionPreferences cookie helpers", () => {
           },
         },
         settings: {
-          order: ["renderControls", "panelSettings"],
+          order: ["renderControls", "export", "panelSettings"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
             renderControls: true,
+            export: true,
             panelSettings: true,
           },
         },
@@ -60,10 +61,11 @@ describe("panelSectionPreferences cookie helpers", () => {
           },
         },
         settings: {
-          order: ["renderControls", "panelSettings"],
+          order: ["renderControls", "export", "panelSettings"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
             renderControls: true,
+            export: true,
             panelSettings: true,
           },
         },
@@ -120,7 +122,7 @@ describe("panelSectionPreferences cookie helpers", () => {
         default: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.default,
         help: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.help,
         settings: {
-          order: ["renderControls", "panelSettings"],
+          order: ["renderControls", "export", "panelSettings"],
           collapsed: {
             ...DEFAULT_PANEL_SECTION_COLLAPSED,
             panelSettings: true,

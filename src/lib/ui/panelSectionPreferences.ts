@@ -3,6 +3,7 @@ export type ControlPanelView = "default" | "help" | "settings";
 export type PanelSectionId =
   | "sketches"
   | "renderControls"
+  | "export"
   | "params"
   | "layers"
   | "plotter"
@@ -34,6 +35,7 @@ export const DEFAULT_PANEL_SECTION_ORDER: PanelSectionId[] = [
 export const DEFAULT_HELP_SECTION_ORDER: PanelSectionId[] = ["aboutPlotGarden", "helpOverview"];
 export const DEFAULT_SETTINGS_SECTION_ORDER: PanelSectionId[] = [
   "renderControls",
+  "export",
   "panelSettings",
 ];
 
@@ -51,6 +53,7 @@ export const DEFAULT_PANEL_SECTION_COLLAPSED: Record<PanelSectionId, boolean> = 
   plotter: true,
   helpOverview: false,
   aboutPlotGarden: false,
+  export: false,
   panelSettings: false,
 };
 
@@ -121,11 +124,19 @@ export function sanitizePanelSectionOrder(
     seen.add("aboutPlotGarden");
     next.unshift("aboutPlotGarden");
   }
-  // Migrate legacy settings layouts (saved before Render Controls moved here)
-  // to show Render Controls first.
+  // Migrate legacy settings layouts to ensure newer sections are present.
   if (view === "settings" && !seen.has("renderControls")) {
     seen.add("renderControls");
     next.unshift("renderControls");
+  }
+  if (view === "settings" && !seen.has("export")) {
+    seen.add("export");
+    const panelSettingsIndex = next.indexOf("panelSettings");
+    if (panelSettingsIndex >= 0) {
+      next.splice(panelSettingsIndex, 0, "export");
+    } else {
+      next.push("export");
+    }
   }
 
   for (const id of defaults) {

@@ -1228,6 +1228,18 @@ export function SketchWorkbench({
               ) : null}
             </div>
           ))}
+          {renderMode === "manual" ? (
+            <div className={styles.controlsRow}>
+              <button
+                className={`${styles.renderButton} ${styles.fullWidthButton}`}
+                disabled={rendering || !dirty}
+                onClick={onRenderClick}
+                type="button"
+              >
+                {renderButtonLabel}
+              </button>
+            </div>
+          ) : null}
         </>
       ),
     },
@@ -1601,9 +1613,6 @@ export function SketchWorkbench({
                 <option value="mm">Millimeters</option>
               </select>
             </label>
-          </div>
-
-          <div className={styles.row}>
             <label>
               <span className={styles.label}>Render Mode</span>
               <select
@@ -1618,28 +1627,33 @@ export function SketchWorkbench({
                 <option value="manual">Manual</option>
               </select>
             </label>
-            <div>
-              <span className={styles.label}>Render</span>
-              {renderMode === "manual" ? (
-                <button
-                  className={styles.renderButton}
-                  disabled={rendering || !dirty}
-                  onClick={onRenderClick}
-                  type="button"
-                >
-                  {renderButtonLabel}
-                </button>
-              ) : (
-                <button className={styles.renderButton} disabled type="button">
-                  Live
-                </button>
-              )}
-            </div>
           </div>
 
+          {renderMode === "manual" ? (
+            <div className={styles.controlsRow}>
+              <button
+                className={`${styles.renderButton} ${styles.fullWidthButton}`}
+                disabled={rendering || !dirty}
+                onClick={onRenderClick}
+                type="button"
+              >
+                {renderButtonLabel}
+              </button>
+            </div>
+          ) : null}
+
+          {renderError ? <p className={styles.status}>Render error: {renderError}</p> : null}
+        </>
+      ),
+    },
+    export: {
+      title: "Export",
+      body: (
+        <>
+          <p className={styles.status}>Download the current rendered sketch as an SVG file.</p>
           <div className={styles.controlsRow}>
             <button
-              className={styles.secondaryButton}
+              className={`${styles.fullWidthButton} ${styles.secondaryButton}`}
               onClick={onDownloadSvg}
               type="button"
               disabled={!normalizedDocument}
@@ -1647,8 +1661,6 @@ export function SketchWorkbench({
               Download SVG
             </button>
           </div>
-
-          {renderError ? <p className={styles.status}>Render error: {renderError}</p> : null}
         </>
       ),
     },
