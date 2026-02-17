@@ -99,6 +99,94 @@ describe("SketchWorkbench", () => {
     });
   });
 
+  it("enables reset params only after params differ from defaults", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    const expandParamsButton = screen.queryByRole("button", {
+      name: "Expand Sketch Parameters section",
+    });
+    if (expandParamsButton) {
+      fireEvent.click(expandParamsButton);
+    }
+
+    const resetParamsButton = screen.getByRole("button", { name: "Reset Params" });
+    expect(resetParamsButton).toBeDisabled();
+
+    const firstParamInput = screen.getAllByRole("spinbutton")[0] as HTMLInputElement;
+    const defaultValue = firstParamInput.value;
+    const changedValue = defaultValue === "1" ? "2" : "1";
+    fireEvent.change(firstParamInput, { target: { value: changedValue } });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reset Params" })).toBeEnabled();
+    });
+  });
+
+  it("requires a confirmation click before resetting sketch params", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    const expandParamsButton = screen.queryByRole("button", {
+      name: "Expand Sketch Parameters section",
+    });
+    if (expandParamsButton) {
+      fireEvent.click(expandParamsButton);
+    }
+
+    const firstParamInput = screen.getAllByRole("spinbutton")[0] as HTMLInputElement;
+    const defaultValue = firstParamInput.value;
+    const changedValue = defaultValue === "1" ? "2" : "1";
+    fireEvent.change(firstParamInput, { target: { value: changedValue } });
+
+    const resetParamsButton = screen.getByRole("button", { name: "Reset Params" });
+    await waitFor(() => {
+      expect(resetParamsButton).toBeEnabled();
+    });
+
+    fireEvent.click(resetParamsButton);
+    expect((screen.getAllByRole("spinbutton")[0] as HTMLInputElement).value).toBe(changedValue);
+
+    fireEvent.click(resetParamsButton);
+    await waitFor(() => {
+      expect((screen.getAllByRole("spinbutton")[0] as HTMLInputElement).value).toBe(
+        defaultValue,
+      );
+      expect(screen.getByRole("button", { name: "Reset Params" })).toBeDisabled();
+    });
+  });
+
+  it("cancels reset params confirmation when clicking outside the reset button", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    const expandParamsButton = screen.queryByRole("button", {
+      name: "Expand Sketch Parameters section",
+    });
+    if (expandParamsButton) {
+      fireEvent.click(expandParamsButton);
+    }
+
+    const firstParamInput = screen.getAllByRole("spinbutton")[0] as HTMLInputElement;
+    const defaultValue = firstParamInput.value;
+    const changedValue = defaultValue === "1" ? "2" : "1";
+    fireEvent.change(firstParamInput, { target: { value: changedValue } });
+
+    const resetParamsButton = screen.getByRole("button", { name: "Reset Params" });
+    await waitFor(() => {
+      expect(resetParamsButton).toBeEnabled();
+    });
+
+    fireEvent.click(resetParamsButton);
+    fireEvent.pointerDown(document.body);
+    fireEvent.click(resetParamsButton);
+    expect((screen.getAllByRole("spinbutton")[0] as HTMLInputElement).value).toBe(changedValue);
+
+    fireEvent.click(resetParamsButton);
+    await waitFor(() => {
+      expect((screen.getAllByRole("spinbutton")[0] as HTMLInputElement).value).toBe(
+        defaultValue,
+      );
+    });
+  });
+
   it("persists panel section state to localStorage", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
     fireEvent.click(screen.getByRole("button", { name: "Collapse Sketches section" }));

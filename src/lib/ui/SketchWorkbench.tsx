@@ -468,6 +468,8 @@ export function SketchWorkbench({
   const [renderedControlPanelView, setRenderedControlPanelView] =
     useState<ControlPanelView>("default");
   const [controlPanelContentVisible, setControlPanelContentVisible] = useState(true);
+  const [confirmResetParams, setConfirmResetParams] = useState(false);
+  const resetParamsButtonRef = useRef<HTMLButtonElement | null>(null);
   const [confirmResetPlotGarden, setConfirmResetPlotGarden] = useState(false);
   const resetPlotGardenButtonRef = useRef<HTMLButtonElement | null>(null);
   const controlPanelSwapTimeoutRef = useRef<number | null>(null);
@@ -747,10 +749,29 @@ export function SketchWorkbench({
   }, [clearControlPanelSwapTimer]);
 
   useEffect(() => {
+    if (controlPanelView !== "default") {
+      setConfirmResetParams(false);
+    }
     if (controlPanelView !== "settings") {
       setConfirmResetPlotGarden(false);
     }
   }, [controlPanelView]);
+
+  useEffect(() => {
+    if (!confirmResetParams) return;
+
+    const onDocumentPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (resetParamsButtonRef.current?.contains(target)) return;
+      setConfirmResetParams(false);
+    };
+
+    document.addEventListener("pointerdown", onDocumentPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", onDocumentPointerDown);
+    };
+  }, [confirmResetParams]);
 
   useEffect(() => {
     if (!confirmResetPlotGarden) return;
@@ -767,6 +788,16 @@ export function SketchWorkbench({
       document.removeEventListener("pointerdown", onDocumentPointerDown);
     };
   }, [confirmResetPlotGarden]);
+
+  const paramsChangedFromDefaults = useMemo(() => {
+    return shallowSerialize(draftParams) !== shallowSerialize(fallbackDefaults);
+  }, [draftParams, fallbackDefaults]);
+
+  useEffect(() => {
+    if (!paramsChangedFromDefaults) {
+      setConfirmResetParams(false);
+    }
+  }, [paramsChangedFromDefaults]);
 
   const performRender = useCallback(
     async (
@@ -932,6 +963,17 @@ export function SketchWorkbench({
   const onRenderClick = () => {
     if (!dirty || rendering) return;
     void performRender(draftParams, draftContext);
+  };
+
+  const onResetParams = () => {
+    if (!paramsChangedFromDefaults) return;
+    if (!confirmResetParams) {
+      setConfirmResetParams(true);
+      return;
+    }
+
+    setDraftParams(fallbackDefaults);
+    setConfirmResetParams(false);
   };
 
   const onDownloadSvg = () => {
@@ -1245,6 +1287,19 @@ export function SketchWorkbench({
               ) : null}
             </div>
           ))}
+          <div className={styles.controlsRow}>
+            <button
+              className={`${styles.fullWidthButton} ${
+                confirmResetParams ? styles.dangerButton : styles.secondaryButton
+              }`}
+              disabled={!paramsChangedFromDefaults}
+              onClick={onResetParams}
+              ref={resetParamsButtonRef}
+              type="button"
+            >
+              Reset Params
+            </button>
+          </div>
           {renderMode === "manual" ? (
             <div className={styles.controlsRow}>
               <button
