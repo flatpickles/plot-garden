@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_HELP_SECTION_ORDER,
+  DEFAULT_PANEL_SECTION_MODE_PREFERENCES,
   DEFAULT_SETTINGS_SECTION_ORDER,
   DEFAULT_PANEL_SECTION_WIDTH,
 } from "@/lib/ui/panelSectionPreferences";
@@ -77,6 +78,7 @@ describe("SketchWorkbench", () => {
           };
         };
         sidebarWidth?: number;
+        sidebarHeight?: number | null;
       };
       expect(parsed.modes?.default?.order).toEqual([
         "sketches",
@@ -88,6 +90,7 @@ describe("SketchWorkbench", () => {
       expect(parsed.modes?.help?.order).toEqual(DEFAULT_HELP_SECTION_ORDER);
       expect(parsed.modes?.settings?.order).toEqual(DEFAULT_SETTINGS_SECTION_ORDER);
       expect(parsed.sidebarWidth).toBe(DEFAULT_PANEL_SECTION_WIDTH);
+      expect(parsed.sidebarHeight).toBeNull();
     });
   });
 
@@ -169,5 +172,124 @@ describe("SketchWorkbench", () => {
       };
       expect(parsed.modes?.settings?.collapsed?.renderControls).toBe(false);
     });
+  });
+
+  it("starts narrow layout at an even split and uses a horizontal separator", async () => {
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 480,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: 800,
+    });
+
+    try {
+      const { container } = render(<SketchWorkbench initialSlug="inset-square" />);
+      const separator = screen.getByRole("separator", { name: "Resize control panel" });
+      const shell = container.firstElementChild as HTMLElement;
+
+      await waitFor(() => {
+        expect(separator).toHaveAttribute("aria-orientation", "horizontal");
+      });
+
+      await waitFor(() => {
+        expect(shell.style.getPropertyValue("--panel-section-height")).toBe("400px");
+      });
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: originalWidth,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        configurable: true,
+        writable: true,
+        value: originalHeight,
+      });
+    }
+  });
+
+  it("applies seeded mobile split height on initial render", () => {
+    const { container } = render(
+      <SketchWorkbench
+        initialSlug="inset-square"
+        initialPanelSectionPreferences={{
+          modes: DEFAULT_PANEL_SECTION_MODE_PREFERENCES,
+          sidebarWidth: DEFAULT_PANEL_SECTION_WIDTH,
+          sidebarHeight: 310,
+        }}
+      />,
+    );
+    const shell = container.firstElementChild as HTMLElement;
+    expect(shell.style.getPropertyValue("--panel-section-height")).toBe("310px");
+  });
+
+  it("restores saved narrow split height from localStorage", async () => {
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 480,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: 800,
+    });
+
+    window.localStorage.setItem(
+      "plot-garden.panel-section-preferences",
+      JSON.stringify({
+        modes: {
+          default: {
+            order: ["sketches", "layers", "params", "plotter"],
+            collapsed: {},
+          },
+          help: {
+            order: ["aboutPlotGarden", "helpOverview"],
+            collapsed: {},
+          },
+          settings: {
+            order: ["renderControls", "panelSettings"],
+            collapsed: {},
+          },
+        },
+        sidebarWidth: DEFAULT_PANEL_SECTION_WIDTH,
+        sidebarHeight: 310,
+      }),
+    );
+
+    try {
+      const { container } = render(<SketchWorkbench initialSlug="inset-square" />);
+      const shell = container.firstElementChild as HTMLElement;
+
+      await waitFor(() => {
+        expect(shell.style.getPropertyValue("--panel-section-height")).toBe("310px");
+      });
+
+      await waitFor(() => {
+        const raw = window.localStorage.getItem("plot-garden.panel-section-preferences");
+        expect(raw).toBeTruthy();
+        const parsed = JSON.parse(raw ?? "{}") as { sidebarHeight?: number | null };
+        expect(parsed.sidebarHeight).toBe(310);
+      });
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: originalWidth,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        configurable: true,
+        writable: true,
+        value: originalHeight,
+      });
+    }
   });
 });

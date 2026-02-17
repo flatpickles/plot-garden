@@ -38,6 +38,7 @@ describe("panelSectionPreferences cookie helpers", () => {
         },
       },
       sidebarWidth: 420,
+      sidebarHeight: 360,
     });
 
     expect(parsePanelSectionPreferencesCookie(encoded)).toEqual({
@@ -68,6 +69,7 @@ describe("panelSectionPreferences cookie helpers", () => {
         },
       },
       sidebarWidth: 420,
+      sidebarHeight: 360,
     });
   });
 
@@ -95,6 +97,7 @@ describe("panelSectionPreferences cookie helpers", () => {
         settings: DEFAULT_PANEL_SECTION_MODE_PREFERENCES.settings,
       },
       sidebarWidth: DEFAULT_PANEL_SECTION_WIDTH,
+      sidebarHeight: null,
     });
   });
 
@@ -125,6 +128,7 @@ describe("panelSectionPreferences cookie helpers", () => {
         },
       },
       sidebarWidth: DEFAULT_PANEL_SECTION_WIDTH,
+      sidebarHeight: null,
     });
   });
 });

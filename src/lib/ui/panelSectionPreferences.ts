@@ -18,6 +18,7 @@ export type PanelSectionModePreferences = {
 export type PanelSectionPreferences = {
   modes: Record<ControlPanelView, PanelSectionModePreferences>;
   sidebarWidth: number;
+  sidebarHeight: number | null;
 };
 
 export const PANEL_SECTION_PREFS_STORAGE_KEY = "plot-garden.panel-section-preferences";
@@ -157,6 +158,12 @@ export function sanitizePanelSectionWidth(value: unknown): number {
   return Math.max(1, Math.round(value));
 }
 
+export function sanitizePanelSectionHeight(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.max(1, Math.round(value));
+}
+
 function sanitizePanelSectionModePreferences(
   view: ControlPanelView,
   value: unknown,
@@ -188,6 +195,7 @@ export function sanitizePanelSectionPreferences(value: unknown): PanelSectionPre
       settings: sanitizePanelSectionModePreferences("settings", modesRecord.settings),
     },
     sidebarWidth: sanitizePanelSectionWidth(record.sidebarWidth),
+    sidebarHeight: sanitizePanelSectionHeight(record.sidebarHeight),
   };
 }
 

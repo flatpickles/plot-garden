@@ -81,13 +81,17 @@ import {
 import styles from "./SketchWorkbench.module.css";
 
 const PLOTTER_CONFIG_STORAGE_KEY = "plot-garden.plotter-config";
+const MOBILE_LAYOUT_MAX_WIDTH = 980;
+const PANEL_RESIZE_HANDLE_THICKNESS = 1;
 const MIN_PANEL_SECTION_WIDTH = 280;
+const MIN_PANEL_SECTION_HEIGHT = 220;
 const SECTION_DROP_TRAVEL_MS = 280;
 const SECTION_DROP_FADE_MS = 220;
 const SECTION_ACTIVE_FADE_IN_MS = 120;
 const SECTION_DROP_ANIMATION_MS = SECTION_DROP_TRAVEL_MS + SECTION_DROP_FADE_MS;
 const SECTION_REAL_FADE_COMPLETE_MS = SECTION_DROP_TRAVEL_MS + SECTION_ACTIVE_FADE_IN_MS;
 const CONTROL_PANEL_FADE_MS = 110;
+type PanelResizeAxis = "horizontal" | "vertical";
 
 function plotterConfigEqual(a?: PlotterConfig, b?: PlotterConfig): boolean {
   if (!a || !b) return false;
@@ -436,6 +440,9 @@ export function SketchWorkbench({
   const [sidebarWidth, setSidebarWidth] = useState(
     seededPanelPreferences?.sidebarWidth ?? DEFAULT_PANEL_SECTION_WIDTH,
   );
+  const [sidebarHeight, setSidebarHeight] = useState<number | null>(
+    seededPanelPreferences?.sidebarHeight ?? null,
+  );
   const sectionSensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -445,10 +452,12 @@ export function SketchWorkbench({
   );
   const panelResizeStateRef = useRef<{
     pointerId: number;
-    startX: number;
-    startWidth: number;
+    axis: PanelResizeAxis;
+    startPosition: number;
+    startSize: number;
   } | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
+  const [isNarrowLayout, setIsNarrowLayout] = useState(false);
   const plotterControlsHideTimeoutRef = useRef<number | null>(null);
   const [isResizingPanel, setIsResizingPanel] = useState(false);
   const landingRevealTimeoutRef = useRef<number | null>(null);
@@ -514,35 +523,84 @@ export function SketchWorkbench({
     [transitionControlPanelView],
   );
 
-  const clampPanelWidth = useCallback((nextWidth: number) => {
+  const getContainerSize = useCallback((axis: PanelResizeAxis) => {
     const shell = shellRef.current;
-    if (!shell) return Math.max(1, Math.round(nextWidth));
-
-    if (shell.clientWidth <= 0) {
-      return Math.max(1, Math.round(nextWidth));
-    }
-
-    const maxWidth = Math.max(0, Math.floor(shell.clientWidth / 2));
-    if (maxWidth === 0) return Math.max(1, Math.round(nextWidth));
-
-    const minimumWidth = Math.min(MIN_PANEL_SECTION_WIDTH, maxWidth);
-    const normalized = Math.round(nextWidth);
-    return Math.max(minimumWidth, Math.min(normalized, maxWidth));
+    const shellSize = axis === "horizontal" ? shell?.clientWidth : shell?.clientHeight;
+    if (shellSize && shellSize > 0) return shellSize;
+    return axis === "horizontal" ? window.innerWidth : window.innerHeight;
   }, []);
 
-  const fitPanelWidthToViewport = useCallback(() => {
-    setSidebarWidth((currentWidth) => clampPanelWidth(currentWidth));
-  }, [clampPanelWidth]);
+  const getIsNarrowLayout = useCallback(() => {
+    return getContainerSize("horizontal") <= MOBILE_LAYOUT_MAX_WIDTH;
+  }, [getContainerSize]);
+
+  const getEqualSplitPanelSize = useCallback(
+    (axis: PanelResizeAxis) => {
+      const containerSize = getContainerSize(axis);
+      const totalResizableSize = Math.max(0, containerSize - PANEL_RESIZE_HANDLE_THICKNESS);
+      return Math.round(totalResizableSize / 2);
+    },
+    [getContainerSize],
+  );
+
+  const clampPanelSize = useCallback(
+    (nextSize: number, axis: PanelResizeAxis) => {
+      const normalized = Math.max(1, Math.round(nextSize));
+      const containerSize = getContainerSize(axis);
+      if (containerSize <= 0) return normalized;
+
+      const totalResizableSize = Math.max(0, containerSize - PANEL_RESIZE_HANDLE_THICKNESS);
+      if (totalResizableSize === 0) return normalized;
+
+      if (axis === "horizontal") {
+        const maxSize = Math.max(0, Math.floor(containerSize / 2));
+        if (maxSize === 0) return normalized;
+        const minimumSize = Math.min(MIN_PANEL_SECTION_WIDTH, maxSize);
+        return Math.max(minimumSize, Math.min(normalized, maxSize));
+      }
+
+      const maxSize = Math.max(0, totalResizableSize - MIN_PANEL_SECTION_HEIGHT);
+      if (maxSize === 0) return normalized;
+      const minimumSize = Math.min(MIN_PANEL_SECTION_HEIGHT, maxSize);
+      return Math.max(minimumSize, Math.min(normalized, maxSize));
+    },
+    [getContainerSize],
+  );
+
+  const fitPanelSizeToViewport = useCallback(() => {
+    const narrowLayout = getIsNarrowLayout();
+    setIsNarrowLayout(narrowLayout);
+
+    if (narrowLayout) {
+      setSidebarHeight((currentHeight) => {
+        const targetHeight =
+          currentHeight === null ? getEqualSplitPanelSize("vertical") : currentHeight;
+        return clampPanelSize(targetHeight, "vertical");
+      });
+      return;
+    }
+
+    setSidebarWidth((currentWidth) => clampPanelSize(currentWidth, "horizontal"));
+  }, [clampPanelSize, getEqualSplitPanelSize, getIsNarrowLayout]);
 
   const onPanelResizePointerMove = useCallback(
     (event: PointerEvent) => {
       const currentResize = panelResizeStateRef.current;
       if (!currentResize || currentResize.pointerId !== event.pointerId) return;
 
-      const targetWidth = currentResize.startWidth + (event.clientX - currentResize.startX);
-      setSidebarWidth(clampPanelWidth(targetWidth));
+      const delta =
+        currentResize.axis === "horizontal"
+          ? event.clientX - currentResize.startPosition
+          : event.clientY - currentResize.startPosition;
+      const targetSize = currentResize.startSize + delta;
+      const normalizedSize = clampPanelSize(targetSize, currentResize.axis);
+      if (currentResize.axis === "horizontal") {
+        setSidebarWidth(normalizedSize);
+      } else {
+        setSidebarHeight(normalizedSize);
+      }
     },
-    [clampPanelWidth],
+    [clampPanelSize],
   );
 
   const onPanelResizePointerUp = useCallback(
@@ -565,19 +623,37 @@ export function SketchWorkbench({
       if (!shell) return;
 
       event.preventDefault();
-      const normalizedWidth = clampPanelWidth(sidebarWidth);
-      setSidebarWidth(normalizedWidth);
+      const axis: PanelResizeAxis = getIsNarrowLayout() ? "vertical" : "horizontal";
+      const currentSize =
+        axis === "horizontal"
+          ? sidebarWidth
+          : (sidebarHeight ?? getEqualSplitPanelSize("vertical"));
+      const normalizedSize = clampPanelSize(currentSize, axis);
+      if (axis === "horizontal") {
+        setSidebarWidth(normalizedSize);
+      } else {
+        setSidebarHeight(normalizedSize);
+      }
       panelResizeStateRef.current = {
         pointerId: event.pointerId,
-        startX: event.clientX,
-        startWidth: normalizedWidth,
+        axis,
+        startPosition: axis === "horizontal" ? event.clientX : event.clientY,
+        startSize: normalizedSize,
       };
       setIsResizingPanel(true);
       window.addEventListener("pointermove", onPanelResizePointerMove);
       window.addEventListener("pointercancel", onPanelResizePointerUp);
       window.addEventListener("pointerup", onPanelResizePointerUp);
     },
-    [clampPanelWidth, onPanelResizePointerMove, onPanelResizePointerUp, sidebarWidth],
+    [
+      clampPanelSize,
+      getEqualSplitPanelSize,
+      getIsNarrowLayout,
+      onPanelResizePointerMove,
+      onPanelResizePointerUp,
+      sidebarHeight,
+      sidebarWidth,
+    ],
   );
 
   const transportRef = useRef<AxiDrawWebSerialTransport | null>(null);
@@ -595,13 +671,13 @@ export function SketchWorkbench({
   }, []);
 
   useEffect(() => {
-    fitPanelWidthToViewport();
-  }, [fitPanelWidthToViewport]);
+    fitPanelSizeToViewport();
+  }, [fitPanelSizeToViewport]);
 
   useEffect(() => {
-    window.addEventListener("resize", fitPanelWidthToViewport);
-    return () => window.removeEventListener("resize", fitPanelWidthToViewport);
-  }, [fitPanelWidthToViewport]);
+    window.addEventListener("resize", fitPanelSizeToViewport);
+    return () => window.removeEventListener("resize", fitPanelSizeToViewport);
+  }, [fitPanelSizeToViewport]);
 
   useEffect(() => {
     return () => {
@@ -634,6 +710,7 @@ export function SketchWorkbench({
       const safePreferences = sanitizePanelSectionPreferences(stored);
       setPanelSectionModes(clonePanelSectionModePreferences(safePreferences.modes));
       setSidebarWidth(safePreferences.sidebarWidth);
+      setSidebarHeight(safePreferences.sidebarHeight);
     }
     setPanelSectionPrefsReady(true);
   }, [panelSectionPrefsReady]);
@@ -648,12 +725,13 @@ export function SketchWorkbench({
     const nextPreferences: PanelSectionPreferences = {
       modes: panelSectionModes,
       sidebarWidth,
+      sidebarHeight,
     };
     writeLocalStorageJSON(PANEL_SECTION_PREFS_STORAGE_KEY, nextPreferences);
     document.cookie = `${PANEL_SECTION_PREFS_COOKIE_KEY}=${serializePanelSectionPreferencesCookie(
       nextPreferences,
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
-  }, [panelSectionModes, panelSectionPrefsReady, sidebarWidth]);
+  }, [panelSectionModes, panelSectionPrefsReady, sidebarHeight, sidebarWidth]);
 
   useEffect(() => {
     return () => clearLandingTimers();
@@ -754,12 +832,20 @@ export function SketchWorkbench({
       }) as CSSProperties,
     [canvasAspectRatio],
   );
-  const shellStyle = useMemo<CSSProperties & { ["--panel-section-width"]?: string }>(
-    () => ({
+  const shellStyle = useMemo<
+    CSSProperties & { ["--panel-section-width"]?: string; ["--panel-section-height"]?: string }
+  >(() => {
+    const nextStyle: CSSProperties & {
+      ["--panel-section-width"]?: string;
+      ["--panel-section-height"]?: string;
+    } = {
       "--panel-section-width": `${sidebarWidth}px`,
-    }),
-    [sidebarWidth],
-  );
+    };
+    if (sidebarHeight !== null) {
+      nextStyle["--panel-section-height"] = `${sidebarHeight}px`;
+    }
+    return nextStyle;
+  }, [sidebarHeight, sidebarWidth]);
 
   const filteredSketches = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -977,7 +1063,8 @@ export function SketchWorkbench({
 
   const onResetPanelLayout = () => {
     setPanelSectionModes(clonePanelSectionModePreferences(DEFAULT_PANEL_SECTION_MODE_PREFERENCES));
-    setSidebarWidth(clampPanelWidth(DEFAULT_PANEL_SECTION_WIDTH));
+    setSidebarWidth(clampPanelSize(DEFAULT_PANEL_SECTION_WIDTH, "horizontal"));
+    setSidebarHeight(null);
   };
 
   const onResetPlotGarden = () => {
@@ -1699,7 +1786,7 @@ export function SketchWorkbench({
         }`}
         role="separator"
         aria-label="Resize control panel"
-        aria-orientation="vertical"
+        aria-orientation={isNarrowLayout ? "horizontal" : "vertical"}
         onPointerDown={onPanelResizePointerDown}
       />
 

@@ -7,6 +7,7 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--panel-section-width, 340px) 1px 1fr;
+  grid-template-rows: 1fr;
   background:
     radial-gradient(circle at 10% 10%, rgba(255, 198, 134, 0.25), transparent 45%),
     radial-gradient(circle at 80% 20%, rgba(255, 234, 201, 0.4), transparent 50%),
@@ -707,20 +708,30 @@
 @media (max-width: 980px) {
   .shell {
     grid-template-columns: 1fr;
+    grid-template-rows: var(--panel-section-height, calc((100dvh - 1px) / 2)) 1px 1fr;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
   }
 
   .sidebar {
     border-right: none;
-    border-bottom: 1px solid rgba(40, 30, 20, 0.14);
-    max-height: 55vh;
+    border-bottom: none;
+    max-height: none;
+    min-height: 0;
   }
 
   .previewPane {
-    min-height: 45vh;
+    min-height: 0;
   }
 
   .resizeHandle {
-    display: none;
+    cursor: row-resize;
+  }
+
+  .resizeHandle::before,
+  .resizeHandleActive::before {
+    inset: -4px 0;
   }
 }
 
