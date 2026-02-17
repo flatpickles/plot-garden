@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 
 import "./globals.css";
@@ -17,6 +17,10 @@ const monoFont = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Plot Garden",
   description: "Pen plotter sketchbook for SVG-first generative art.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#fbf4e8",
 };
 
 export default function RootLayout({
