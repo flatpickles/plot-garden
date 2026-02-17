@@ -1436,6 +1436,7 @@ export function SketchWorkbench({
                 ) : (
                   <span className={styles.checkboxRow}>
                     <input
+                      className={styles.checkboxInput}
                       type="checkbox"
                       aria-label={definition.label}
                       checked={Boolean(draftParams[key] ?? definition.default)}
@@ -1448,7 +1449,9 @@ export function SketchWorkbench({
                 )}
               </label>
               {definition.type === "number" && definition.description ? (
-                <p className={styles.muted}>{definition.description}</p>
+                <p className={`${styles.muted} ${styles.paramDescription}`}>
+                  {definition.description}
+                </p>
               ) : null}
             </div>
           ))}
