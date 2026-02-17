@@ -51,7 +51,7 @@ describe("SketchWorkbench", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Render" })).toBeEnabled();
+      expect(screen.getByText("Render", { selector: "button" })).toBeEnabled();
     });
   });
 
@@ -83,7 +83,7 @@ describe("SketchWorkbench", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Render" })).toBeEnabled();
+      expect(screen.getByText("Render", { selector: "button" })).toBeEnabled();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Close panel settings" }));
@@ -96,7 +96,7 @@ describe("SketchWorkbench", () => {
     }
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Render" })).toBeEnabled();
+      expect(screen.getByText("Render", { selector: "button" })).toBeEnabled();
     });
   });
 
