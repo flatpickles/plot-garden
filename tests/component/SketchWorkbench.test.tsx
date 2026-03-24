@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -7,7 +7,10 @@ import {
   DEFAULT_SETTINGS_SECTION_ORDER,
   DEFAULT_PANEL_SECTION_WIDTH,
 } from "@/lib/ui/panelSectionPreferences";
-import { SketchWorkbench } from "@/lib/ui/SketchWorkbench";
+import {
+  resetClientSketchSortModeForTests,
+  SketchWorkbench,
+} from "@/lib/ui/SketchWorkbench";
 import { WORKBENCH_SESSION_STORAGE_KEY } from "@/lib/ui/workbenchSessionPreferences";
 
 vi.mock("next/navigation", () => {
@@ -19,8 +22,16 @@ vi.mock("next/navigation", () => {
 });
 
 describe("SketchWorkbench", () => {
+  const getSketchListTitles = () => {
+    const sketchList = screen.getByTestId("sketch-list");
+    return within(sketchList)
+      .getAllByRole("button")
+      .map((button) => button.firstElementChild?.textContent?.trim() ?? "");
+  };
+
   beforeEach(() => {
     window.localStorage.clear();
+    resetClientSketchSortModeForTests();
   });
 
   afterEach(() => {
@@ -294,6 +305,193 @@ describe("SketchWorkbench", () => {
     });
   });
 
+  it("defaults sketch sorting to recent and keeps the selected sketch first", async () => {
+    window.localStorage.setItem(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        renderControls: {
+          width: 8,
+          height: 6,
+          units: "in",
+          renderMode: "live",
+        },
+        sketchParamsBySlug: {},
+        recentSketchSlugs: ["layered-waves", "inset-square", "aurora-topography"],
+      }),
+    );
+
+    const view = render(<SketchWorkbench initialSlug="aurora-topography" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Sort sketches by most recently viewed" }),
+      ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    expect(getSketchListTitles()).toEqual([
+      "Aurora Topography",
+      "Layered Waves",
+      "Inset Square Study",
+      "Nebulous",
+    ]);
+  });
+
+  it("reorders sketches when switching to published sort", async () => {
+    window.localStorage.setItem(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        renderControls: {
+          width: 8,
+          height: 6,
+          units: "in",
+          renderMode: "live",
+        },
+        sketchParamsBySlug: {},
+        recentSketchSlugs: ["layered-waves", "aurora-topography"],
+      }),
+    );
+
+    const view = render(<SketchWorkbench initialSlug="aurora-topography" />);
+
+    await waitFor(() => {
+      expect(getSketchListTitles()[0]).toBe("Aurora Topography");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort sketches by publish date" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Sort sketches by publish date" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      expect(getSketchListTitles()).toEqual([
+        "Nebulous",
+        "Inset Square Study",
+        "Layered Waves",
+        "Aurora Topography",
+      ]);
+    });
+  });
+
+  it("clears the active sort after selecting a sketch that is not first", async () => {
+    window.localStorage.setItem(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        renderControls: {
+          width: 8,
+          height: 6,
+          units: "in",
+          renderMode: "live",
+        },
+        sketchParamsBySlug: {},
+        recentSketchSlugs: ["aurora-topography", "layered-waves", "inset-square"],
+      }),
+    );
+
+    const view = render(<SketchWorkbench initialSlug="aurora-topography" />);
+
+    await waitFor(() => {
+      expect(getSketchListTitles()).toEqual([
+        "Aurora Topography",
+        "Layered Waves",
+        "Inset Square Study",
+        "Nebulous",
+      ]);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Layered Waves/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Sort sketches by most recently viewed" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      expect(
+        screen.getByRole("button", { name: "Sort sketches by publish date" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      expect(getSketchListTitles()).toEqual([
+        "Aurora Topography",
+        "Layered Waves",
+        "Inset Square Study",
+        "Nebulous",
+      ]);
+    });
+
+    view.unmount();
+    render(<SketchWorkbench initialSlug="layered-waves" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Sort sketches by most recently viewed" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      expect(
+        screen.getByRole("button", { name: "Sort sketches by publish date" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      expect(getSketchListTitles()).toEqual([
+        "Aurora Topography",
+        "Layered Waves",
+        "Inset Square Study",
+        "Nebulous",
+      ]);
+    });
+  });
+
+  it("reapplies recent sorting when clicking the left sort button again", async () => {
+    window.localStorage.setItem(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        renderControls: {
+          width: 8,
+          height: 6,
+          units: "in",
+          renderMode: "live",
+        },
+        sketchParamsBySlug: {},
+        recentSketchSlugs: ["aurora-topography", "layered-waves", "inset-square"],
+      }),
+    );
+
+    render(<SketchWorkbench initialSlug="aurora-topography" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Layered Waves/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Sort sketches by most recently viewed" }),
+      ).toHaveAttribute("aria-pressed", "false");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort sketches by most recently viewed" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Sort sketches by most recently viewed" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      expect(getSketchListTitles()).toEqual([
+        "Layered Waves",
+        "Aurora Topography",
+        "Inset Square Study",
+        "Nebulous",
+      ]);
+    });
+  });
+
+  it("applies search filtering in both sketch sort modes", async () => {
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search sketches" }), {
+      target: { value: "waves" },
+    });
+
+    await waitFor(() => {
+      expect(getSketchListTitles()).toEqual(["Layered Waves"]);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort sketches by publish date" }));
+
+    await waitFor(() => {
+      expect(getSketchListTitles()).toEqual(["Layered Waves"]);
+    });
+  });
+
   it("scrolls the selected sketch into view on initial render", async () => {
     const scrolledElements: HTMLElement[] = [];
     const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
@@ -311,7 +509,10 @@ describe("SketchWorkbench", () => {
       render(<SketchWorkbench initialSlug="layered-waves" />);
 
       await waitFor(() => {
-        expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+        expect(scrollIntoView).toHaveBeenCalledWith({
+          behavior: "smooth",
+          block: "nearest",
+        });
       });
 
       expect(scrolledElements).toContain(

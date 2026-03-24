@@ -28,7 +28,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CircleHelp, Play, Settings, X } from "lucide-react";
+import { CalendarDays, CircleHelp, History, Play, Settings, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { sketchRegistry } from "@/generated/sketch-registry";
@@ -101,6 +101,10 @@ const SECTION_DROP_ANIMATION_MS = SECTION_DROP_TRAVEL_MS + SECTION_DROP_FADE_MS;
 const SECTION_REAL_FADE_COMPLETE_MS = SECTION_DROP_TRAVEL_MS + SECTION_ACTIVE_FADE_IN_MS;
 const CONTROL_PANEL_FADE_MS = 110;
 type PanelResizeAxis = "horizontal" | "vertical";
+type SketchSortMode = "recent" | "published";
+type AppliedSketchSortMode = SketchSortMode | null;
+let clientSketchSortMode: AppliedSketchSortMode = "recent";
+let clientFrozenSketchOrderSlugs: string[] | null = null;
 
 function plotterConfigEqual(a?: PlotterConfig, b?: PlotterConfig): boolean {
   if (!a || !b) return false;
@@ -213,6 +217,15 @@ function removeLocalStorageValue(key: string): void {
 function prettyDistance(inches: number, units: Unit): string {
   if (units === "in") return `${inches.toFixed(2)} in`;
   return `${(inches * 25.4).toFixed(1)} mm`;
+}
+
+function stringArraysEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+export function resetClientSketchSortModeForTests(): void {
+  clientSketchSortMode = "recent";
+  clientFrozenSketchOrderSlugs = null;
 }
 
 type SidebarSection = {
@@ -388,6 +401,12 @@ export function SketchWorkbench({
 
   const [selectedSlug, setSelectedSlug] = useState(initialSlug);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sketchSortMode, setSketchSortMode] = useState<AppliedSketchSortMode>(
+    () => clientSketchSortMode,
+  );
+  const [frozenSketchOrderSlugs, setFrozenSketchOrderSlugs] = useState<string[] | null>(
+    () => clientFrozenSketchOrderSlugs,
+  );
 
   const selectedEntry =
     sketchRegistry.find((entry) => entry.manifest.slug === selectedSlug) ??
@@ -522,6 +541,7 @@ export function SketchWorkbench({
   const [confirmResetPlotGarden, setConfirmResetPlotGarden] = useState(false);
   const resetPlotGardenButtonRef = useRef<HTMLButtonElement | null>(null);
   const selectedSketchButtonRef = useRef<HTMLButtonElement | null>(null);
+  const initialSelectedSketchScrollDoneRef = useRef(false);
   const controlPanelSwapTimeoutRef = useRef<number | null>(null);
   const initialClientRenderSeededRef = useRef(false);
 
@@ -744,8 +764,17 @@ export function SketchWorkbench({
   }, [onPanelResizePointerMove, onPanelResizePointerUp]);
 
   useEffect(() => {
+    initialSelectedSketchScrollDoneRef.current = false;
     setSelectedSlug(initialSlug);
   }, [initialSlug]);
+
+  useEffect(() => {
+    clientSketchSortMode = sketchSortMode;
+  }, [sketchSortMode]);
+
+  useEffect(() => {
+    clientFrozenSketchOrderSlugs = frozenSketchOrderSlugs;
+  }, [frozenSketchOrderSlugs]);
 
   useEffect(() => {
     setPlotterConfig(
@@ -778,6 +807,25 @@ export function SketchWorkbench({
   }, [plotterConfig]);
 
   useEffect(() => {
+    if (!workbenchSessionPrefsReady) return;
+
+    setWorkbenchSessionPreferences((current) => {
+      const nextRecentSketchSlugs = [
+        selectedSlug,
+        ...current.recentSketchSlugs.filter((slug) => slug !== selectedSlug),
+      ];
+      if (stringArraysEqual(nextRecentSketchSlugs, current.recentSketchSlugs)) {
+        return current;
+      }
+
+      return sanitizeWorkbenchSessionPreferences({
+        ...current,
+        recentSketchSlugs: nextRecentSketchSlugs,
+      });
+    });
+  }, [selectedSlug, workbenchSessionPrefsReady]);
+
+  useEffect(() => {
     if (!workbenchSessionPrefsReady || !sketch) return;
 
     const nextParams = sketch.coerceParams(
@@ -801,6 +849,7 @@ export function SketchWorkbench({
           renderMode,
         },
         sketchParamsBySlug: nextSketchParamsBySlug,
+        recentSketchSlugs: current.recentSketchSlugs,
       });
       return nextPreferences;
     });
@@ -1046,26 +1095,89 @@ export function SketchWorkbench({
     return nextStyle;
   }, [sidebarHeight, sidebarWidth]);
 
-  const filteredSketches = useMemo(() => {
-    const needle = searchTerm.trim().toLowerCase();
-    if (!needle) return sketchRegistry;
+  const visibleSketches = useMemo(() => {
+    const sortedSketches = [...sketchRegistry];
 
-    return sketchRegistry.filter((entry) => {
+    if (sketchSortMode === "published") {
+      sortedSketches.sort((a, b) => {
+        const publishedComparison = b.manifest.publishedAt.localeCompare(a.manifest.publishedAt);
+        if (publishedComparison !== 0) return publishedComparison;
+        if (a.manifest.order !== b.manifest.order) {
+          return a.manifest.order - b.manifest.order;
+        }
+        return a.manifest.title.localeCompare(b.manifest.title);
+      });
+    } else if (sketchSortMode === "recent") {
+      const recentOrderBySlug = new Map(
+        workbenchSessionPreferences.recentSketchSlugs.map((slug, index) => [slug, index]),
+      );
+
+      sortedSketches.sort((a, b) => {
+        if (a.manifest.slug === selectedSlug && b.manifest.slug !== selectedSlug) return -1;
+        if (b.manifest.slug === selectedSlug && a.manifest.slug !== selectedSlug) return 1;
+
+        const aRecentIndex = recentOrderBySlug.get(a.manifest.slug);
+        const bRecentIndex = recentOrderBySlug.get(b.manifest.slug);
+        if (aRecentIndex !== undefined && bRecentIndex !== undefined) {
+          return aRecentIndex - bRecentIndex;
+        }
+        if (aRecentIndex !== undefined) return -1;
+        if (bRecentIndex !== undefined) return 1;
+        if (a.manifest.order !== b.manifest.order) {
+          return a.manifest.order - b.manifest.order;
+        }
+        return a.manifest.title.localeCompare(b.manifest.title);
+      });
+    } else if (frozenSketchOrderSlugs) {
+      const frozenOrderBySlug = new Map(
+        frozenSketchOrderSlugs.map((slug, index) => [slug, index]),
+      );
+
+      sortedSketches.sort((a, b) => {
+        const aFrozenIndex = frozenOrderBySlug.get(a.manifest.slug);
+        const bFrozenIndex = frozenOrderBySlug.get(b.manifest.slug);
+        if (aFrozenIndex !== undefined && bFrozenIndex !== undefined) {
+          return aFrozenIndex - bFrozenIndex;
+        }
+        if (aFrozenIndex !== undefined) return -1;
+        if (bFrozenIndex !== undefined) return 1;
+        if (a.manifest.order !== b.manifest.order) {
+          return a.manifest.order - b.manifest.order;
+        }
+        return a.manifest.title.localeCompare(b.manifest.title);
+      });
+    }
+
+    const needle = searchTerm.trim().toLowerCase();
+    if (!needle) return sortedSketches;
+
+    return sortedSketches.filter((entry) => {
       const title = entry.manifest.title.toLowerCase();
       const tags = entry.manifest.tags.join(" ").toLowerCase();
       const slug = entry.manifest.slug.toLowerCase();
       return title.includes(needle) || tags.includes(needle) || slug.includes(needle);
     });
-  }, [searchTerm]);
+  }, [
+    frozenSketchOrderSlugs,
+    searchTerm,
+    selectedSlug,
+    sketchSortMode,
+    workbenchSessionPreferences.recentSketchSlugs,
+  ]);
 
   useEffect(() => {
+    if (!workbenchSessionPrefsReady) return;
+    if (initialSelectedSketchScrollDoneRef.current) return;
+
     const selectedSketchButton = selectedSketchButtonRef.current;
     if (typeof selectedSketchButton?.scrollIntoView !== "function") return;
+    initialSelectedSketchScrollDoneRef.current = true;
 
     selectedSketchButton.scrollIntoView({
+      behavior: "smooth",
       block: "nearest",
     });
-  }, [filteredSketches, selectedSlug]);
+  }, [selectedSlug, visibleSketches, workbenchSessionPrefsReady]);
 
   const hasSeededJobPlan =
     Boolean(
@@ -1100,7 +1212,13 @@ export function SketchWorkbench({
       ? "Render"
       : "Rendered";
 
+  const topVisibleSketchSlug = visibleSketches[0]?.manifest.slug ?? null;
+
   const onSelectSketch = (slug: string) => {
+    if (slug !== topVisibleSketchSlug) {
+      setFrozenSketchOrderSlugs(visibleSketches.map((entry) => entry.manifest.slug));
+      setSketchSortMode(null);
+    }
     setSelectedSlug(slug);
     router.push(`/sketch/${slug}`);
   };
@@ -1393,16 +1511,48 @@ export function SketchWorkbench({
       title: "Sketches",
       body: (
         <>
-          <input
-            className={styles.searchInput}
-            type="search"
-            aria-label="Search sketches"
-            placeholder="Search sketches"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-          />
-          <div className={styles.sketchList}>
-            {filteredSketches.map((entry) => {
+          <div className={styles.sketchToolbar}>
+            <input
+              className={styles.searchInput}
+              type="search"
+              aria-label="Search sketches"
+              placeholder="Search sketches"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+            <div className={styles.sketchSortToggle} role="group" aria-label="Sort sketches">
+              <button
+                type="button"
+                className={`${styles.sketchSortButton} ${
+                  sketchSortMode === "recent" ? styles.sketchSortButtonActive : ""
+                }`}
+                aria-label="Sort sketches by most recently viewed"
+                aria-pressed={sketchSortMode === "recent"}
+                onClick={() => {
+                  setFrozenSketchOrderSlugs(null);
+                  setSketchSortMode("recent");
+                }}
+              >
+                <History />
+              </button>
+              <button
+                type="button"
+                className={`${styles.sketchSortButton} ${
+                  sketchSortMode === "published" ? styles.sketchSortButtonActive : ""
+                }`}
+                aria-label="Sort sketches by publish date"
+                aria-pressed={sketchSortMode === "published"}
+                onClick={() => {
+                  setFrozenSketchOrderSlugs(null);
+                  setSketchSortMode("published");
+                }}
+              >
+                <CalendarDays />
+              </button>
+            </div>
+          </div>
+          <div className={styles.sketchList} data-testid="sketch-list">
+            {visibleSketches.map((entry) => {
               const active = entry.manifest.slug === selectedEntry.manifest.slug;
               return (
                 <button

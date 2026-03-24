@@ -24,6 +24,7 @@ const manifest1: SketchManifest =
       "spiral",
       "golden-ratio"
     ],
+    "publishedAt": "2026-03-23",
     "order": -1,
     "thumbnail": "thumbnail.png",
     "className": "Nebulous"
@@ -38,6 +39,7 @@ const manifest2: SketchManifest =
       "geometry",
       "starter"
     ],
+    "publishedAt": "2026-03-23",
     "order": 1,
     "thumbnail": "thumbnail.png",
     "className": "InsetSquare"
@@ -52,6 +54,7 @@ const manifest3: SketchManifest =
       "svg",
       "layers"
     ],
+    "publishedAt": "2026-03-23",
     "order": 2,
     "thumbnail": "thumbnail.png",
     "className": "LayeredWaves"
@@ -67,6 +70,7 @@ const manifest4: SketchManifest =
       "contours",
       "multi-layer"
     ],
+    "publishedAt": "2026-03-23",
     "order": 3,
     "thumbnail": "thumbnail.png",
     "className": "AuroraTopography"

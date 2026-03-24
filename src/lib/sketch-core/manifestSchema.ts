@@ -8,6 +8,7 @@ export const sketchManifestSchema = z.object({
   title: z.string().min(1),
   description: z.string().default(""),
   tags: z.array(z.string()).default([]),
+  publishedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   order: z.number().int().default(0),
   thumbnail: z.string().default("thumbnail.png"),
   className: z.string().min(1),

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   SKETCHES_DIR,
@@ -92,13 +93,25 @@ export default class ${className} extends PlotterSketch<typeof schema> {
 `;
 }
 
-function createManifest(slug: string, className: string): string {
+export function formatLocalDate(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function createManifest(
+  slug: string,
+  className: string,
+  publishedAt: string = formatLocalDate(),
+): string {
   return JSON.stringify(
     {
       slug,
       title: className,
       description: "Describe your sketch here.",
       tags: ["starter"],
+      publishedAt,
       order: 100,
       thumbnail: "thumbnail.png",
       className,
@@ -108,7 +121,7 @@ function createManifest(slug: string, className: string): string {
   );
 }
 
-function main() {
+export function main() {
   const input = process.argv[2];
   if (!input) {
     throw new Error("Usage: pnpm sketch:new <slug>");
@@ -136,4 +149,10 @@ function main() {
   console.log(`Created sketch: ${slug}`);
 }
 
-main();
+const isDirectExecution =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectExecution) {
+  main();
+}

@@ -1,3 +1,4 @@
+import { sketchRegistryBySlug } from "@/generated/sketch-registry";
 import type { SketchParamValue, Unit } from "@/lib/sketch-core/types";
 import {
   DEFAULT_CONTEXT,
@@ -16,6 +17,7 @@ export type WorkbenchRenderControls = {
 export type WorkbenchSessionPreferences = {
   renderControls: WorkbenchRenderControls;
   sketchParamsBySlug: Record<string, Record<string, SketchParamValue>>;
+  recentSketchSlugs: string[];
 };
 
 export const WORKBENCH_SESSION_STORAGE_KEY = "plot-garden.workbench-session-preferences";
@@ -65,6 +67,23 @@ function sanitizeSketchParamsBySlug(
   return next;
 }
 
+function sanitizeRecentSketchSlugs(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set<string>();
+  const next: string[] = [];
+
+  for (const candidate of value) {
+    if (typeof candidate !== "string") continue;
+    if (!sketchRegistryBySlug[candidate]) continue;
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    next.push(candidate);
+  }
+
+  return next;
+}
+
 export function createDefaultWorkbenchSessionPreferences(): WorkbenchSessionPreferences {
   return {
     renderControls: {
@@ -74,6 +93,7 @@ export function createDefaultWorkbenchSessionPreferences(): WorkbenchSessionPref
       renderMode: DEFAULT_RENDER_MODE,
     },
     sketchParamsBySlug: {},
+    recentSketchSlugs: [],
   };
 }
 
@@ -95,6 +115,7 @@ export function sanitizeWorkbenchSessionPreferences(
       renderMode: sanitizeRenderMode(renderControlsRecord.renderMode),
     },
     sketchParamsBySlug: sanitizeSketchParamsBySlug(record.sketchParamsBySlug),
+    recentSketchSlugs: sanitizeRecentSketchSlugs(record.recentSketchSlugs),
   };
 }
 
@@ -134,6 +155,7 @@ export function isDefaultWorkbenchSessionPreferences(
     value.renderControls.height === DEFAULT_CONTEXT.height &&
     value.renderControls.units === DEFAULT_CONTEXT.units &&
     value.renderControls.renderMode === DEFAULT_RENDER_MODE &&
-    Object.keys(value.sketchParamsBySlug).length === 0
+    Object.keys(value.sketchParamsBySlug).length === 0 &&
+    value.recentSketchSlugs.length === 0
   );
 }

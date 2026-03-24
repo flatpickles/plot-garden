@@ -36,3 +36,6 @@ A skill is a set of local instructions to follow that is stored in a `SKILL.md` 
 - If a project name is abstract or evocative, do not guess what it should look like from the name alone.
 - If I create a project named `nebulous`, make only a simple scaffold and wait for more direct prompts instead of inventing the visual direction.
 - Revisit these preferences throughout the project. If instructions are ambiguous, choose the least interpretive implementation and wait for clarification rather than filling in artistic intent.
+
+## Sketch Metadata Guidance
+- When creating a new sketch, always populate `publishedAt` in `sketch.json` with the current local date in `YYYY-MM-DD` format.

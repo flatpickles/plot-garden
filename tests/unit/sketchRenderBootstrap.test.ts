@@ -27,6 +27,7 @@ describe("computeSketchInitialRenderState", () => {
         title: "Exploding",
         description: "Intentionally fails on render.",
         tags: ["test"],
+        publishedAt: "2026-03-23",
         order: 999,
         thumbnail: "thumbnail.png",
         className: "Exploding",

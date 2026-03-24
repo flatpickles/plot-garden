@@ -60,6 +60,7 @@ Fields:
 - `title`: display title
 - `description`: short description
 - `tags`: string array
+- `publishedAt`: local publish date in `YYYY-MM-DD` format
 - `order`: integer for list ordering
 - `thumbnail`: usually `thumbnail.png` (currently metadata only; not rendered in the app UX)
 - `className`: TS class filename/export name
@@ -85,3 +86,5 @@ This creates:
 - `/Users/matt/dev/plot-garden/src/sketches/my-new-sketch/thumbnail.png`
 
 It also refreshes the registry.
+
+The scaffolded manifest includes `publishedAt` with the current local date.

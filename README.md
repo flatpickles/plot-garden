@@ -45,7 +45,7 @@ pnpm build               # sync registry + production build
 pnpm lint                # eslint
 pnpm test                # vitest unit/component tests
 pnpm test:e2e            # playwright smoke test against local server
-pnpm sketch:new <slug>   # scaffold a new sketch
+pnpm sketch:new <slug>   # scaffold a new sketch with today's publishedAt date
 pnpm sketches:sync       # regenerate src/generated/sketch-registry.ts
 pnpm sketches:thumbnails # manually regenerate committed sketch thumbnails (not used in current UI)
 ```

@@ -23,6 +23,7 @@ describe("workbenchSessionPreferences helpers", () => {
           showDiagonals: false,
         },
       },
+      recentSketchSlugs: ["inset-square", "layered-waves"],
     });
 
     expect(parseWorkbenchSessionPreferencesCookie(encoded)).toEqual({
@@ -39,6 +40,7 @@ describe("workbenchSessionPreferences helpers", () => {
           showDiagonals: false,
         },
       },
+      recentSketchSlugs: ["inset-square", "layered-waves"],
     });
   });
 
@@ -62,6 +64,12 @@ describe("workbenchSessionPreferences helpers", () => {
           },
           "layered-waves": "invalid",
         },
+        recentSketchSlugs: [
+          "layered-waves",
+          "layered-waves",
+          "unknown-sketch",
+          "inset-square",
+        ],
       }),
     ).toEqual({
       renderControls: {
@@ -76,6 +84,7 @@ describe("workbenchSessionPreferences helpers", () => {
           showDiagonals: true,
         },
       },
+      recentSketchSlugs: ["layered-waves", "inset-square"],
     });
   });
 

@@ -3,6 +3,7 @@
   "title": "Layered Waves",
   "description": "Top-level SVG groups become independent plot layers.",
   "tags": ["svg", "layers"],
+  "publishedAt": "2026-03-23",
   "order": 2,
   "thumbnail": "thumbnail.png",
   "className": "LayeredWaves"
