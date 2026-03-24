@@ -476,9 +476,7 @@ describe("SketchWorkbench", () => {
       name: /Layered Waves/i,
     });
 
-    expect(
-      within(layeredWavesButton).getByText("March 23 • Viewed March 22 at 3:15 PM"),
-    ).toBeInTheDocument();
+    expect(layeredWavesButton).toHaveTextContent("March 23 • Viewed Mar 22, 3:15 PM");
   });
 
   it("hides viewed timestamps when published sort is enabled", async () => {
@@ -572,6 +570,12 @@ describe("SketchWorkbench", () => {
         "Nebulous",
       ]);
     });
+
+    const sketchList = screen.getByTestId("sketch-list");
+    const auroraButton = within(sketchList).getByRole("button", {
+      name: /Aurora Topography/i,
+    });
+    expect(auroraButton).toHaveTextContent(/Viewed /);
 
     view.unmount();
     render(<SketchWorkbench initialSlug="layered-waves" />);

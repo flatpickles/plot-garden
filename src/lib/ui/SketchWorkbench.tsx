@@ -114,6 +114,15 @@ const MONTH_DAY_YEAR_FORMATTER = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   year: "numeric",
 });
+const SHORT_MONTH_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+});
+const SHORT_MONTH_DAY_YEAR_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 const VIEW_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
@@ -145,10 +154,10 @@ function formatSketchViewedAt(dateString: string): string {
   if (Number.isNaN(viewedDate.getTime())) return "";
 
   const dateLabel = isMoreThanOneYearAgo(viewedDate)
-    ? MONTH_DAY_YEAR_FORMATTER.format(viewedDate)
-    : MONTH_DAY_FORMATTER.format(viewedDate);
+    ? SHORT_MONTH_DAY_YEAR_FORMATTER.format(viewedDate)
+    : SHORT_MONTH_DAY_FORMATTER.format(viewedDate);
 
-  return `Viewed ${dateLabel} at ${VIEW_TIME_FORMATTER.format(viewedDate)}`;
+  return `Viewed ${dateLabel}, ${VIEW_TIME_FORMATTER.format(viewedDate)}`;
 }
 
 function plotterConfigEqual(a?: PlotterConfig, b?: PlotterConfig): boolean {
@@ -1614,7 +1623,7 @@ export function SketchWorkbench({
             {visibleSketches.map((entry) => {
               const active = entry.manifest.slug === selectedEntry.manifest.slug;
               const viewedAtLabel =
-                sketchSortMode === "recent"
+                sketchSortMode !== "published"
                   ? formatSketchViewedAt(
                       workbenchSessionPreferences.lastViewedAtBySlug[entry.manifest.slug] ?? "",
                     )
