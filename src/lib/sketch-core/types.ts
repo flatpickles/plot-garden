@@ -24,18 +24,29 @@ export interface BooleanParamDefinition extends BaseParamDefinition<"boolean"> {
   default: boolean;
 }
 
-export type SketchParamDefinition = NumberParamDefinition | BooleanParamDefinition;
+export interface SelectParamDefinition<TValue extends string = string>
+  extends BaseParamDefinition<"select"> {
+  default: TValue;
+  options: readonly TValue[];
+}
+
+export type SketchParamDefinition =
+  | NumberParamDefinition
+  | BooleanParamDefinition
+  | SelectParamDefinition;
 
 export type SketchParamSchema = Record<string, SketchParamDefinition>;
 
-export type SketchParamValue = number | boolean;
+export type SketchParamValue = number | boolean | string;
 
 export type SketchParamValues<TSchema extends SketchParamSchema = SketchParamSchema> = {
   [K in keyof TSchema]: TSchema[K] extends NumberParamDefinition
     ? number
     : TSchema[K] extends BooleanParamDefinition
       ? boolean
-      : never;
+      : TSchema[K] extends SelectParamDefinition<infer TValue>
+        ? TValue
+        : never;
 };
 
 export interface SketchRenderContext {

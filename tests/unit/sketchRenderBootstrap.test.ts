@@ -78,4 +78,22 @@ describe("computeSketchInitialRenderState", () => {
     });
     expect(seed.renderedParams).toEqual(seed.draftParams);
   });
+
+  it("falls back to the default select option for invalid persisted values", async () => {
+    const target = sketchRegistry.find((entry) => entry.manifest.slug === "nebulous");
+    if (!target) throw new Error("Missing nebulous sketch");
+
+    const seed = await computeSketchInitialRenderState(target, {
+      persistedParams: {
+        edgePadding: 0.35,
+        spiralDepth: 12,
+        offsetDistance: 0.3,
+        tieBreakMode: "invalid-mode",
+      },
+    });
+
+    expect(seed.draftParams).toMatchObject({
+      tieBreakMode: "prefer-current",
+    });
+  });
 });

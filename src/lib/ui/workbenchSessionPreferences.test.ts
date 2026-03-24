@@ -21,9 +21,13 @@ describe("workbenchSessionPreferences helpers", () => {
           inset: 2.25,
           ringCount: 6,
           showDiagonals: false,
+          mode: "prefer-current",
         },
       },
       recentSketchSlugs: ["inset-square", "layered-waves"],
+      lastViewedAtBySlug: {
+        "inset-square": "2026-03-23T15:45:00.000Z",
+      },
     });
 
     expect(parseWorkbenchSessionPreferencesCookie(encoded)).toEqual({
@@ -38,9 +42,13 @@ describe("workbenchSessionPreferences helpers", () => {
           inset: 2.25,
           ringCount: 6,
           showDiagonals: false,
+          mode: "prefer-current",
         },
       },
       recentSketchSlugs: ["inset-square", "layered-waves"],
+      lastViewedAtBySlug: {
+        "inset-square": "2026-03-23T15:45:00.000Z",
+      },
     });
   });
 
@@ -60,6 +68,7 @@ describe("workbenchSessionPreferences helpers", () => {
             inset: "1.2",
             ringCount: 5,
             showDiagonals: true,
+            mode: "nearest-valid",
             meta: { ignore: true },
           },
           "layered-waves": "invalid",
@@ -70,6 +79,11 @@ describe("workbenchSessionPreferences helpers", () => {
           "unknown-sketch",
           "inset-square",
         ],
+        lastViewedAtBySlug: {
+          "layered-waves": "2026-03-22T18:10:00.000Z",
+          "unknown-sketch": "2026-03-20T12:00:00.000Z",
+          "inset-square": "not-a-date",
+        },
       }),
     ).toEqual({
       renderControls: {
@@ -80,11 +94,16 @@ describe("workbenchSessionPreferences helpers", () => {
       },
       sketchParamsBySlug: {
         "inset-square": {
+          inset: "1.2",
           ringCount: 5,
           showDiagonals: true,
+          mode: "nearest-valid",
         },
       },
       recentSketchSlugs: ["layered-waves", "inset-square"],
+      lastViewedAtBySlug: {
+        "layered-waves": "2026-03-22T18:10:00.000Z",
+      },
     });
   });
 

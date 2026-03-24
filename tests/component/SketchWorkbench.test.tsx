@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,6 +12,7 @@ import {
   SketchWorkbench,
 } from "@/lib/ui/SketchWorkbench";
 import { WORKBENCH_SESSION_STORAGE_KEY } from "@/lib/ui/workbenchSessionPreferences";
+import { sketchRegistry } from "@/generated/sketch-registry";
 
 vi.mock("next/navigation", () => {
   return {
@@ -35,6 +36,7 @@ describe("SketchWorkbench", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
   });
 
@@ -238,7 +240,7 @@ describe("SketchWorkbench", () => {
       const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
       expect(raw).toBeTruthy();
       const parsed = JSON.parse(raw ?? "{}") as {
-        sketchParamsBySlug?: Record<string, Record<string, number | boolean>>;
+        sketchParamsBySlug?: Record<string, Record<string, number | boolean | string>>;
       };
       expect(parsed.sketchParamsBySlug?.["inset-square"]?.inset).toBe(1.8);
     });
@@ -260,7 +262,7 @@ describe("SketchWorkbench", () => {
       const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
       expect(raw).toBeTruthy();
       const parsed = JSON.parse(raw ?? "{}") as {
-        sketchParamsBySlug?: Record<string, Record<string, number | boolean>>;
+        sketchParamsBySlug?: Record<string, Record<string, number | boolean | string>>;
       };
       expect(parsed.sketchParamsBySlug?.["layered-waves"]?.waveCount).toBe(12);
     });
@@ -277,6 +279,37 @@ describe("SketchWorkbench", () => {
 
     await waitFor(() => {
       expect((screen.getByLabelText("Inset") as HTMLInputElement).value).toBe("1.8");
+    });
+  });
+
+  it("renders and persists select sketch params", async () => {
+    render(<SketchWorkbench initialSlug="nebulous" />);
+
+    const expandParamsButton = screen.queryByRole("button", {
+      name: "Expand Parameters section",
+    });
+    if (expandParamsButton) {
+      fireEvent.click(expandParamsButton);
+    }
+
+    const tieBreakSelect = screen.getByLabelText("Tie-break Mode") as HTMLSelectElement;
+    expect(tieBreakSelect.value).toBe("prefer-current");
+
+    fireEvent.change(tieBreakSelect, {
+      target: { value: "nearest-valid" },
+    });
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Tie-break Mode") as HTMLSelectElement).value).toBe(
+        "nearest-valid",
+      );
+
+      const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
+      expect(raw).toBeTruthy();
+      const parsed = JSON.parse(raw ?? "{}") as {
+        sketchParamsBySlug?: Record<string, Record<string, number | boolean | string>>;
+      };
+      expect(parsed.sketchParamsBySlug?.nebulous?.tieBreakMode).toBe("nearest-valid");
     });
   });
 
@@ -370,6 +403,131 @@ describe("SketchWorkbench", () => {
         "Aurora Topography",
       ]);
     });
+  });
+
+  it("shows the sketch creation date in the list meta line", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 23));
+
+    render(<SketchWorkbench initialSlug="inset-square" />);
+
+    const sketchList = screen.getByTestId("sketch-list");
+    const insetSketchButton = within(sketchList).getByRole("button", {
+      name: /Inset Square Study/i,
+    });
+
+    expect(insetSketchButton).toHaveTextContent("March 23");
+    expect(within(sketchList).queryByText("inset-square")).not.toBeInTheDocument();
+  });
+
+  it("includes the year for sketch dates older than one year", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 23));
+
+    const insetSketch = sketchRegistry.find((entry) => entry.manifest.slug === "inset-square");
+    expect(insetSketch).toBeDefined();
+
+    const originalPublishedAt = insetSketch!.manifest.publishedAt;
+    insetSketch!.manifest.publishedAt = "2025-03-22";
+
+    try {
+      render(<SketchWorkbench initialSlug="inset-square" />);
+
+      const sketchList = screen.getByTestId("sketch-list");
+      const insetSketchButton = within(sketchList).getByRole("button", {
+        name: /Inset Square Study/i,
+      });
+
+      expect(insetSketchButton).toHaveTextContent("March 22, 2025");
+    } finally {
+      insetSketch!.manifest.publishedAt = originalPublishedAt;
+    }
+  });
+
+  it("shows viewed timestamps in recent sort mode", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 23, 9, 30));
+
+    window.localStorage.setItem(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        renderControls: {
+          width: 8,
+          height: 6,
+          units: "in",
+          renderMode: "live",
+        },
+        sketchParamsBySlug: {},
+        recentSketchSlugs: ["layered-waves", "aurora-topography"],
+        lastViewedAtBySlug: {
+          "layered-waves": "2026-03-22T22:15:00.000Z",
+          "aurora-topography": "2025-03-20T22:15:00.000Z",
+        },
+      }),
+    );
+
+    render(<SketchWorkbench initialSlug="inset-square" />);
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
+    const sketchList = screen.getByTestId("sketch-list");
+    const layeredWavesButton = within(sketchList).getByRole("button", {
+      name: /Layered Waves/i,
+    });
+
+    expect(
+      within(layeredWavesButton).getByText("March 23 • Viewed March 22 at 3:15 PM"),
+    ).toBeInTheDocument();
+  });
+
+  it("hides viewed timestamps when published sort is enabled", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 23, 9, 30));
+
+    window.localStorage.setItem(
+      WORKBENCH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        renderControls: {
+          width: 8,
+          height: 6,
+          units: "in",
+          renderMode: "live",
+        },
+        sketchParamsBySlug: {},
+        recentSketchSlugs: ["layered-waves", "aurora-topography"],
+        lastViewedAtBySlug: {
+          "layered-waves": "2026-03-22T22:15:00.000Z",
+        },
+      }),
+    );
+
+    render(<SketchWorkbench initialSlug="inset-square" />);
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort sketches by publish date" }));
+    expect(screen.queryByText(/Viewed /)).not.toBeInTheDocument();
+  });
+
+  it("persists the selected sketch view timestamp", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 23, 9, 30));
+
+    render(<SketchWorkbench initialSlug="inset-square" />);
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
+    const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
+    expect(raw).toBeTruthy();
+
+    const parsed = JSON.parse(raw ?? "{}") as {
+      lastViewedAtBySlug?: Record<string, string>;
+    };
+
+    expect(parsed.lastViewedAtBySlug?.["inset-square"]).toBe("2026-03-23T16:30:00.000Z");
   });
 
   it("clears the active sort after selecting a sketch that is not first", async () => {

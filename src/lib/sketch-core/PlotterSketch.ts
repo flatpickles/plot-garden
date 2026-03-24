@@ -34,10 +34,15 @@ export abstract class PlotterSketch<
         const clamped = Math.min(definition.max, Math.max(definition.min, finite));
         const rounded = Math.round(clamped / definition.step) * definition.step;
         (coalesced as Record<string, number>)[key] = Number(rounded.toFixed(6));
-      } else {
+      } else if (definition.type === "boolean") {
         (coalesced as Record<string, boolean>)[key] = Boolean(
           rawValue ?? definition.default,
         );
+      } else {
+        const normalized = typeof rawValue === "string" ? rawValue : definition.default;
+        (coalesced as Record<string, string>)[key] = definition.options.includes(normalized)
+          ? normalized
+          : definition.default;
       }
     }
 

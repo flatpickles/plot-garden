@@ -18,6 +18,7 @@ export type WorkbenchSessionPreferences = {
   renderControls: WorkbenchRenderControls;
   sketchParamsBySlug: Record<string, Record<string, SketchParamValue>>;
   recentSketchSlugs: string[];
+  lastViewedAtBySlug: Record<string, string>;
 };
 
 export const WORKBENCH_SESSION_STORAGE_KEY = "plot-garden.workbench-session-preferences";
@@ -56,6 +57,10 @@ function sanitizeSketchParamsBySlug(
       }
       if (typeof rawValue === "boolean") {
         safeParams[paramKey] = rawValue;
+        continue;
+      }
+      if (typeof rawValue === "string") {
+        safeParams[paramKey] = rawValue;
       }
     }
 
@@ -84,6 +89,25 @@ function sanitizeRecentSketchSlugs(value: unknown): string[] {
   return next;
 }
 
+function sanitizeLastViewedAtBySlug(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+
+  const bySlug = value as Record<string, unknown>;
+  const next: Record<string, string> = {};
+
+  for (const [slug, rawViewedAt] of Object.entries(bySlug)) {
+    if (!sketchRegistryBySlug[slug]) continue;
+    if (typeof rawViewedAt !== "string") continue;
+
+    const viewedAtMs = Date.parse(rawViewedAt);
+    if (Number.isNaN(viewedAtMs)) continue;
+
+    next[slug] = new Date(viewedAtMs).toISOString();
+  }
+
+  return next;
+}
+
 export function createDefaultWorkbenchSessionPreferences(): WorkbenchSessionPreferences {
   return {
     renderControls: {
@@ -94,6 +118,7 @@ export function createDefaultWorkbenchSessionPreferences(): WorkbenchSessionPref
     },
     sketchParamsBySlug: {},
     recentSketchSlugs: [],
+    lastViewedAtBySlug: {},
   };
 }
 
@@ -116,6 +141,7 @@ export function sanitizeWorkbenchSessionPreferences(
     },
     sketchParamsBySlug: sanitizeSketchParamsBySlug(record.sketchParamsBySlug),
     recentSketchSlugs: sanitizeRecentSketchSlugs(record.recentSketchSlugs),
+    lastViewedAtBySlug: sanitizeLastViewedAtBySlug(record.lastViewedAtBySlug),
   };
 }
 
@@ -156,6 +182,7 @@ export function isDefaultWorkbenchSessionPreferences(
     value.renderControls.units === DEFAULT_CONTEXT.units &&
     value.renderControls.renderMode === DEFAULT_RENDER_MODE &&
     Object.keys(value.sketchParamsBySlug).length === 0 &&
-    value.recentSketchSlugs.length === 0
+    value.recentSketchSlugs.length === 0 &&
+    Object.keys(value.lastViewedAtBySlug).length === 0
   );
 }

@@ -1,4 +1,9 @@
 import { PlotterSketch } from "@/lib/sketch-core/PlotterSketch";
+import {
+  traceOffsetLinesSequentially,
+  type OffsetTraceStartSpec,
+  type TieBreakMode,
+} from "@/lib/geometry/offsetTrace";
 import type {
   GeometrySketchOutput,
   Point,
@@ -12,6 +17,11 @@ const PHI = (1 + Math.sqrt(5)) / 2;
 const GOLDEN_SPIRAL_DECAY = (2 * Math.log(PHI)) / Math.PI;
 const PHASE_SAMPLES = 720;
 const MIN_BOX_SIZE = 0.01;
+const TIE_BREAK_OPTIONS = [
+  "prefer-current",
+  "nearest-valid",
+  "stop-on-ambiguity",
+] as const satisfies readonly TieBreakMode[];
 
 const schema = {
   edgePadding: {
@@ -31,6 +41,22 @@ const schema = {
     min: 2,
     max: 32,
     step: 1,
+  },
+  offsetDistance: {
+    type: "number",
+    label: "Offset Distance",
+    description: "Distance between the spiral and the tracked offset line.",
+    default: 0.3,
+    min: 0.05,
+    max: 2,
+    step: 0.05,
+  },
+  tieBreakMode: {
+    type: "select",
+    label: "Tie-break Mode",
+    description: "How the tracked line resolves multiple valid owners.",
+    default: "prefer-current",
+    options: TIE_BREAK_OPTIONS,
   },
 } as const satisfies SketchParamSchema;
 
@@ -150,6 +176,27 @@ function buildGoldenSpiral(
   }));
 }
 
+function buildTrackedLineStartSpecs(
+  spiral: Polyline,
+  offsetDistance: number,
+  tieBreakMode: TieBreakMode,
+): OffsetTraceStartSpec[] {
+  const spiralStart = spiral[0];
+  if (!spiralStart) return [];
+
+  return [
+    {
+      startPoint: {
+        x: spiralStart.x,
+        y: spiralStart.y - offsetDistance,
+      },
+      offsetDistance,
+      preferredSide: "auto-inward",
+      tieBreakMode,
+    },
+  ];
+}
+
 export default class Nebulous extends PlotterSketch<typeof schema> {
   readonly schema = schema;
 
@@ -159,6 +206,16 @@ export default class Nebulous extends PlotterSketch<typeof schema> {
   ): GeometrySketchOutput {
     const spiralDepth = Math.max(2, Math.floor(params.spiralDepth));
     const spiral = buildGoldenSpiral(params.edgePadding, spiralDepth, context);
+    const tracedLines = traceOffsetLinesSequentially(
+      [spiral],
+      buildTrackedLineStartSpecs(spiral, params.offsetDistance, params.tieBreakMode),
+      {
+        minX: 0,
+        minY: 0,
+        maxX: context.width,
+        maxY: context.height,
+      },
+    );
 
     return {
       kind: "geometry",
@@ -167,6 +224,11 @@ export default class Nebulous extends PlotterSketch<typeof schema> {
           id: "spiral",
           name: "Golden Spiral",
           polylines: [spiral],
+        },
+        {
+          id: "tracked-offset",
+          name: "Tracked Offset",
+          polylines: tracedLines,
         },
       ],
     };

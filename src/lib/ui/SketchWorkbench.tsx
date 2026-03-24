@@ -105,6 +105,51 @@ type SketchSortMode = "recent" | "published";
 type AppliedSketchSortMode = SketchSortMode | null;
 let clientSketchSortMode: AppliedSketchSortMode = "recent";
 let clientFrozenSketchOrderSlugs: string[] | null = null;
+const MONTH_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+});
+const MONTH_DAY_YEAR_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+});
+const VIEW_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+function parseLocalDateString(dateString: string): Date {
+  const [year, month, day] = dateString.split("-").map(Number);
+  return new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+}
+
+function formatSketchListDate(dateString: string): string {
+  const publishedDate = parseLocalDateString(dateString);
+  return isMoreThanOneYearAgo(publishedDate)
+    ? MONTH_DAY_YEAR_FORMATTER.format(publishedDate)
+    : MONTH_DAY_FORMATTER.format(publishedDate);
+}
+
+function isMoreThanOneYearAgo(date: Date): boolean {
+  const today = new Date();
+  const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const oneYearAgo = new Date(localToday);
+  oneYearAgo.setFullYear(localToday.getFullYear() - 1);
+
+  return date < oneYearAgo;
+}
+
+function formatSketchViewedAt(dateString: string): string {
+  const viewedDate = new Date(dateString);
+  if (Number.isNaN(viewedDate.getTime())) return "";
+
+  const dateLabel = isMoreThanOneYearAgo(viewedDate)
+    ? MONTH_DAY_YEAR_FORMATTER.format(viewedDate)
+    : MONTH_DAY_FORMATTER.format(viewedDate);
+
+  return `Viewed ${dateLabel} at ${VIEW_TIME_FORMATTER.format(viewedDate)}`;
+}
 
 function plotterConfigEqual(a?: PlotterConfig, b?: PlotterConfig): boolean {
   if (!a || !b) return false;
@@ -810,17 +855,26 @@ export function SketchWorkbench({
     if (!workbenchSessionPrefsReady) return;
 
     setWorkbenchSessionPreferences((current) => {
+      const viewedAt = new Date().toISOString();
       const nextRecentSketchSlugs = [
         selectedSlug,
         ...current.recentSketchSlugs.filter((slug) => slug !== selectedSlug),
       ];
-      if (stringArraysEqual(nextRecentSketchSlugs, current.recentSketchSlugs)) {
+      const nextLastViewedAtBySlug = {
+        ...current.lastViewedAtBySlug,
+        [selectedSlug]: viewedAt,
+      };
+      if (
+        stringArraysEqual(nextRecentSketchSlugs, current.recentSketchSlugs) &&
+        current.lastViewedAtBySlug[selectedSlug] === viewedAt
+      ) {
         return current;
       }
 
       return sanitizeWorkbenchSessionPreferences({
         ...current,
         recentSketchSlugs: nextRecentSketchSlugs,
+        lastViewedAtBySlug: nextLastViewedAtBySlug,
       });
     });
   }, [selectedSlug, workbenchSessionPrefsReady]);
@@ -850,6 +904,7 @@ export function SketchWorkbench({
         },
         sketchParamsBySlug: nextSketchParamsBySlug,
         recentSketchSlugs: current.recentSketchSlugs,
+        lastViewedAtBySlug: current.lastViewedAtBySlug,
       });
       return nextPreferences;
     });
@@ -1238,6 +1293,10 @@ export function SketchWorkbench({
     setDraftParams((current) => ({ ...current, [key]: value }));
   };
 
+  const onSelectParamChange = (key: string, value: string) => {
+    setDraftParams((current) => ({ ...current, [key]: value }));
+  };
+
   const onRenderClick = () => {
     if (!dirty || rendering) return;
     void performRender(draftParams, draftContext);
@@ -1554,6 +1613,12 @@ export function SketchWorkbench({
           <div className={styles.sketchList} data-testid="sketch-list">
             {visibleSketches.map((entry) => {
               const active = entry.manifest.slug === selectedEntry.manifest.slug;
+              const viewedAtLabel =
+                sketchSortMode === "recent"
+                  ? formatSketchViewedAt(
+                      workbenchSessionPreferences.lastViewedAtBySlug[entry.manifest.slug] ?? "",
+                    )
+                  : "";
               return (
                 <button
                   className={`${styles.sketchButton} ${
@@ -1565,7 +1630,10 @@ export function SketchWorkbench({
                   type="button"
                 >
                   <div>{entry.manifest.title}</div>
-                  <div className={styles.sketchMeta}>{entry.manifest.slug}</div>
+                  <div className={styles.sketchMeta}>
+                    {formatSketchListDate(entry.manifest.publishedAt)}
+                    {viewedAtLabel ? ` • ${viewedAtLabel}` : ""}
+                  </div>
                 </button>
               );
             })}
@@ -1594,6 +1662,19 @@ export function SketchWorkbench({
                       onNumberParamChange(key, Number(event.target.value))
                     }
                   />
+                ) : definition.type === "select" ? (
+                  <select
+                    className={styles.selectInput}
+                    aria-label={definition.label}
+                    value={String(draftParams[key] ?? definition.default)}
+                    onChange={(event) => onSelectParamChange(key, event.target.value)}
+                  >
+                    {definition.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <span className={styles.checkboxRow}>
                     <input
@@ -1609,7 +1690,8 @@ export function SketchWorkbench({
                   </span>
                 )}
               </label>
-              {definition.type === "number" && definition.description ? (
+              {(definition.type === "number" || definition.type === "select") &&
+              definition.description ? (
                 <p className={`${styles.muted} ${styles.paramDescription}`}>
                   {definition.description}
                 </p>
