@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Polyline } from "@/lib/sketch-core/types";
+import type { Point, Polyline } from "@/lib/sketch-core/types";
 import {
   traceOffsetLine,
   traceOffsetLinesSequentially,
@@ -17,18 +17,65 @@ const BOUNDS: TraceBounds = {
 
 function buildStartSpec(
   startPoint: { x: number; y: number },
-  tieBreakMode: OffsetTraceStartSpec["tieBreakMode"] = "prefer-current",
+  traceMode: OffsetTraceStartSpec["traceMode"] = "turn-on-breach",
 ): OffsetTraceStartSpec {
   return {
     startPoint,
     offsetDistance: 2,
     preferredSide: "left",
-    tieBreakMode,
+    traceMode,
   };
 }
 
+function cross(a: Point, b: Point, c: Point): number {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+function pointsClose(a: Point, b: Point, tolerance = 1e-3): boolean {
+  return Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
+}
+
+function properSegmentIntersection(a: Point, b: Point, c: Point, d: Point): boolean {
+  if (pointsClose(a, c) || pointsClose(a, d) || pointsClose(b, c) || pointsClose(b, d)) {
+    return false;
+  }
+
+  const d1 = cross(a, b, c);
+  const d2 = cross(a, b, d);
+  const d3 = cross(c, d, a);
+  const d4 = cross(c, d, b);
+
+  return (
+    ((d1 > 1e-6 && d2 < -1e-6) || (d1 < -1e-6 && d2 > 1e-6)) &&
+    ((d3 > 1e-6 && d4 < -1e-6) || (d3 < -1e-6 && d4 > 1e-6))
+  );
+}
+
+function countPolylineIntersections(lineA: Polyline, lineB: Polyline, skipNearby = false): number {
+  let count = 0;
+
+  for (let indexA = 0; indexA < lineA.length - 1; indexA += 1) {
+    const startA = lineA[indexA];
+    const endA = lineA[indexA + 1];
+    if (!startA || !endA) continue;
+
+    for (let indexB = 0; indexB < lineB.length - 1; indexB += 1) {
+      if (skipNearby && Math.abs(indexA - indexB) <= 1) continue;
+      const startB = lineB[indexB];
+      const endB = lineB[indexB + 1];
+      if (!startB || !endB) continue;
+
+      if (properSegmentIntersection(startA, endA, startB, endB)) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
 describe("offsetTrace", () => {
-  it("tracks a straight line at a fixed offset", () => {
+  it("tracks a straight line at a fixed offset without intersections", () => {
     const base: Polyline[] = [[
       { x: 0, y: 0 },
       { x: 8, y: 0 },
@@ -39,87 +86,74 @@ describe("offsetTrace", () => {
     expect(line).not.toBeNull();
     expect(line?.[0]).toEqual({ x: 0, y: 2 });
     expect(line?.every((point) => Math.abs(point.y - 2) < 0.01)).toBe(true);
-    expect(line?.at(-1)?.x).toBeCloseTo(8, 1);
+    expect(countPolylineIntersections(line ?? [], base[0] ?? [])).toBe(0);
+    expect(countPolylineIntersections(line ?? [], line ?? [], true)).toBe(0);
   });
 
-  it("hands off to another owner under prefer-current when the current owner ends", () => {
+  it("continues through a unique redirect only in turn-on-breach mode", () => {
     const base: Polyline[] = [
       [
         { x: 0, y: 0 },
+        { x: 8, y: 0 },
+      ],
+      [
         { x: 6, y: 0 },
-      ],
-      [
-        { x: 8, y: 2 },
-        { x: 8, y: 8 },
+        { x: 6, y: 8 },
       ],
     ];
 
-    const line = traceOffsetLine(base, buildStartSpec({ x: 0, y: 2 }), BOUNDS);
+    const turning = traceOffsetLine(base, buildStartSpec({ x: 0, y: 2 }, "turn-on-breach"), BOUNDS);
+    const stopping = traceOffsetLine(
+      base,
+      buildStartSpec({ x: 0, y: 2 }, "stop-on-ambiguity"),
+      BOUNDS,
+    );
 
-    expect(line).not.toBeNull();
-    expect(line?.some((point) => point.x > 5.9 && point.y > 2.5)).toBe(true);
-    expect(line?.at(-1)?.x).toBeCloseTo(6, 1);
-    expect(line?.at(-1)?.y).toBeCloseTo(8, 1);
+    expect(turning).not.toBeNull();
+    expect(stopping).not.toBeNull();
+    expect((turning?.length ?? 0)).toBeGreaterThan(stopping?.length ?? 0);
+    expect(turning?.some((point) => point.x <= 4.1 && point.y > 2.5)).toBe(true);
+    expect(stopping?.at(-1)?.x).toBeCloseTo(4, 1);
+    expect(stopping?.at(-1)?.y).toBeCloseTo(2, 1);
   });
 
-  it("switches owners immediately under nearest-valid when offsets overlap", () => {
+  it("stops both modes when there is no valid continuation", () => {
     const base: Polyline[] = [
       [
         { x: 0, y: 0 },
         { x: 8, y: 0 },
       ],
       [
-        { x: 0, y: 4 },
-        { x: 2, y: 4 },
-        { x: 2, y: 8 },
+        { x: 6, y: -4 },
+        { x: 6, y: 2 },
       ],
     ];
 
-    const line = traceOffsetLine(
+    const turning = traceOffsetLine(base, buildStartSpec({ x: 0, y: 2 }, "turn-on-breach"), BOUNDS);
+    const stopping = traceOffsetLine(
       base,
-      {
-        ...buildStartSpec({ x: 0, y: 2 }, "nearest-valid"),
-        preferredSide: "auto-inward",
-      },
+      buildStartSpec({ x: 0, y: 2 }, "stop-on-ambiguity"),
       BOUNDS,
     );
 
-    expect(line).not.toBeNull();
-    expect(line?.some((point) => point.x > 3.8 && point.y > 3.8)).toBe(true);
-    expect(line?.at(-1)?.x).toBeCloseTo(4, 1);
-    expect(line?.at(-1)?.y).toBeCloseTo(8, 1);
+    expect(turning).not.toBeNull();
+    expect(stopping).not.toBeNull();
+    expect(turning).toEqual(stopping);
+    expect(turning?.at(-1)?.x).toBeCloseTo(4, 1);
+    expect(turning?.at(-1)?.y).toBeCloseTo(2, 1);
   });
 
-  it("stops on the first ambiguity when configured to do so", () => {
+  it("lets a later traced line bounce against an earlier traced line without intersecting it", () => {
     const base: Polyline[] = [
       [
         { x: 0, y: 0 },
         { x: 8, y: 0 },
       ],
       [
-        { x: 0, y: 4 },
-        { x: 2, y: 4 },
-        { x: 2, y: 8 },
+        { x: 6, y: 0 },
+        { x: 6, y: 8 },
       ],
     ];
-
-    const line = traceOffsetLine(
-      base,
-      {
-        ...buildStartSpec({ x: 0, y: 2 }, "stop-on-ambiguity"),
-        preferredSide: "auto-inward",
-      },
-      BOUNDS,
-    );
-
-    expect(line).toBeNull();
-  });
-
-  it("lets later traces reference previously generated lines", () => {
-    const base: Polyline[] = [[
-      { x: 0, y: 0 },
-      { x: 8, y: 0 },
-    ]];
 
     const traced = traceOffsetLinesSequentially(
       base,
@@ -131,7 +165,7 @@ describe("offsetTrace", () => {
     );
 
     expect(traced).toHaveLength(2);
-    expect(traced[0]?.every((point) => Math.abs(point.y - 2) < 0.01)).toBe(true);
-    expect(traced[1]?.every((point) => Math.abs(point.y - 4) < 0.01)).toBe(true);
+    expect(countPolylineIntersections(traced[1] ?? [], traced[0] ?? [])).toBe(0);
+    expect((traced[1] ?? []).some((point) => point.x <= 2.1 && point.y > 4.5)).toBe(true);
   });
 });

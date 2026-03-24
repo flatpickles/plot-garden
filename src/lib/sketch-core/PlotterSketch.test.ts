@@ -21,8 +21,12 @@ class ParamTestSketch extends PlotterSketch {
     mode: {
       type: "select",
       label: "Mode",
-      default: "prefer-current",
-      options: ["prefer-current", "nearest-valid", "stop-on-ambiguity"],
+      default: "turn-on-breach",
+      options: ["turn-on-breach", "stop-on-ambiguity"],
+      aliases: {
+        "prefer-current": "turn-on-breach",
+        "nearest-valid": "turn-on-breach",
+      },
     },
   };
 
@@ -41,12 +45,24 @@ describe("PlotterSketch", () => {
     expect(sketch.getDefaultParams()).toEqual({
       amount: 1,
       enabled: true,
-      mode: "prefer-current",
+      mode: "turn-on-breach",
     });
   });
 
-  it("coerces invalid select params back to defaults", () => {
+  it("coerces aliased and invalid select params", () => {
     const sketch = new ParamTestSketch();
+
+    expect(
+      sketch.coerceParams({
+        amount: 4.26,
+        enabled: 0,
+        mode: "nearest-valid",
+      }),
+    ).toEqual({
+      amount: 4.3,
+      enabled: false,
+      mode: "turn-on-breach",
+    });
 
     expect(
       sketch.coerceParams({
@@ -57,7 +73,7 @@ describe("PlotterSketch", () => {
     ).toEqual({
       amount: 4.3,
       enabled: false,
-      mode: "prefer-current",
+      mode: "turn-on-breach",
     });
   });
 });

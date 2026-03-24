@@ -28,6 +28,7 @@ export interface SelectParamDefinition<TValue extends string = string>
   extends BaseParamDefinition<"select"> {
   default: TValue;
   options: readonly TValue[];
+  aliases?: Readonly<Record<string, TValue>>;
 }
 
 export type SketchParamDefinition =

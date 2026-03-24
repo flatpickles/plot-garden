@@ -40,9 +40,10 @@ export abstract class PlotterSketch<
         );
       } else {
         const normalized = typeof rawValue === "string" ? rawValue : definition.default;
-        (coalesced as Record<string, string>)[key] = definition.options.includes(normalized)
-          ? normalized
-          : definition.default;
+        const alias = definition.aliases?.[normalized];
+        const nextValue =
+          alias ?? (definition.options.includes(normalized) ? normalized : definition.default);
+        (coalesced as Record<string, string>)[key] = nextValue;
       }
     }
 

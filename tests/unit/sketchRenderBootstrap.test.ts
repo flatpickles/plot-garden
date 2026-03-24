@@ -79,21 +79,34 @@ describe("computeSketchInitialRenderState", () => {
     expect(seed.renderedParams).toEqual(seed.draftParams);
   });
 
-  it("falls back to the default select option for invalid persisted values", async () => {
+  it("maps legacy and invalid persisted trace modes", async () => {
     const target = sketchRegistry.find((entry) => entry.manifest.slug === "nebulous");
     if (!target) throw new Error("Missing nebulous sketch");
 
-    const seed = await computeSketchInitialRenderState(target, {
+    const migratedSeed = await computeSketchInitialRenderState(target, {
       persistedParams: {
         edgePadding: 0.35,
         spiralDepth: 12,
         offsetDistance: 0.3,
-        tieBreakMode: "invalid-mode",
+        tieBreakMode: "nearest-valid",
       },
     });
 
-    expect(seed.draftParams).toMatchObject({
-      tieBreakMode: "prefer-current",
+    expect(migratedSeed.draftParams).toMatchObject({
+      traceMode: "turn-on-breach",
+    });
+
+    const invalidSeed = await computeSketchInitialRenderState(target, {
+      persistedParams: {
+        edgePadding: 0.35,
+        spiralDepth: 12,
+        offsetDistance: 0.3,
+        traceMode: "invalid-mode",
+      },
+    });
+
+    expect(invalidSeed.draftParams).toMatchObject({
+      traceMode: "turn-on-breach",
     });
   });
 });

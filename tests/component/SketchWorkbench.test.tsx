@@ -282,7 +282,7 @@ describe("SketchWorkbench", () => {
     });
   });
 
-  it("renders and persists select sketch params", async () => {
+  it("renders and persists the two trace mode options", async () => {
     render(<SketchWorkbench initialSlug="nebulous" />);
 
     const expandParamsButton = screen.queryByRole("button", {
@@ -292,16 +292,20 @@ describe("SketchWorkbench", () => {
       fireEvent.click(expandParamsButton);
     }
 
-    const tieBreakSelect = screen.getByLabelText("Tie-break Mode") as HTMLSelectElement;
-    expect(tieBreakSelect.value).toBe("prefer-current");
+    const traceModeSelect = screen.getByLabelText("Trace Mode") as HTMLSelectElement;
+    expect(traceModeSelect.value).toBe("turn-on-breach");
+    expect([...traceModeSelect.options].map((option) => option.value)).toEqual([
+      "turn-on-breach",
+      "stop-on-ambiguity",
+    ]);
 
-    fireEvent.change(tieBreakSelect, {
-      target: { value: "nearest-valid" },
+    fireEvent.change(traceModeSelect, {
+      target: { value: "stop-on-ambiguity" },
     });
 
     await waitFor(() => {
-      expect((screen.getByLabelText("Tie-break Mode") as HTMLSelectElement).value).toBe(
-        "nearest-valid",
+      expect((screen.getByLabelText("Trace Mode") as HTMLSelectElement).value).toBe(
+        "stop-on-ambiguity",
       );
 
       const raw = window.localStorage.getItem(WORKBENCH_SESSION_STORAGE_KEY);
@@ -309,7 +313,7 @@ describe("SketchWorkbench", () => {
       const parsed = JSON.parse(raw ?? "{}") as {
         sketchParamsBySlug?: Record<string, Record<string, number | boolean | string>>;
       };
-      expect(parsed.sketchParamsBySlug?.nebulous?.tieBreakMode).toBe("nearest-valid");
+      expect(parsed.sketchParamsBySlug?.nebulous?.traceMode).toBe("stop-on-ambiguity");
     });
   });
 

@@ -2,7 +2,7 @@ import { PlotterSketch } from "@/lib/sketch-core/PlotterSketch";
 import {
   traceOffsetLinesSequentially,
   type OffsetTraceStartSpec,
-  type TieBreakMode,
+  type TraceMode,
 } from "@/lib/geometry/offsetTrace";
 import type {
   GeometrySketchOutput,
@@ -17,11 +17,10 @@ const PHI = (1 + Math.sqrt(5)) / 2;
 const GOLDEN_SPIRAL_DECAY = (2 * Math.log(PHI)) / Math.PI;
 const PHASE_SAMPLES = 720;
 const MIN_BOX_SIZE = 0.01;
-const TIE_BREAK_OPTIONS = [
-  "prefer-current",
-  "nearest-valid",
+const TRACE_MODE_OPTIONS = [
+  "turn-on-breach",
   "stop-on-ambiguity",
-] as const satisfies readonly TieBreakMode[];
+] as const satisfies readonly TraceMode[];
 
 const schema = {
   edgePadding: {
@@ -51,12 +50,16 @@ const schema = {
     max: 2,
     step: 0.05,
   },
-  tieBreakMode: {
+  traceMode: {
     type: "select",
-    label: "Tie-break Mode",
-    description: "How the tracked line resolves multiple valid owners.",
-    default: "prefer-current",
-    options: TIE_BREAK_OPTIONS,
+    label: "Trace Mode",
+    description: "Whether the tracked line turns on breach or stops on ambiguity.",
+    default: "turn-on-breach",
+    options: TRACE_MODE_OPTIONS,
+    aliases: {
+      "prefer-current": "turn-on-breach",
+      "nearest-valid": "turn-on-breach",
+    },
   },
 } as const satisfies SketchParamSchema;
 
@@ -179,7 +182,7 @@ function buildGoldenSpiral(
 function buildTrackedLineStartSpecs(
   spiral: Polyline,
   offsetDistance: number,
-  tieBreakMode: TieBreakMode,
+  traceMode: TraceMode,
 ): OffsetTraceStartSpec[] {
   const spiralStart = spiral[0];
   if (!spiralStart) return [];
@@ -192,13 +195,25 @@ function buildTrackedLineStartSpecs(
       },
       offsetDistance,
       preferredSide: "auto-inward",
-      tieBreakMode,
+      traceMode,
     },
   ];
 }
 
 export default class Nebulous extends PlotterSketch<typeof schema> {
   readonly schema = schema;
+
+  override coerceParams(input: Record<string, unknown>) {
+    const migratedInput =
+      Object.hasOwn(input, "traceMode") || !Object.hasOwn(input, "tieBreakMode")
+        ? input
+        : {
+            ...input,
+            traceMode: input.tieBreakMode,
+          };
+
+    return super.coerceParams(migratedInput);
+  }
 
   render(
     params: SketchParamValues<typeof schema>,
@@ -208,7 +223,7 @@ export default class Nebulous extends PlotterSketch<typeof schema> {
     const spiral = buildGoldenSpiral(params.edgePadding, spiralDepth, context);
     const tracedLines = traceOffsetLinesSequentially(
       [spiral],
-      buildTrackedLineStartSpecs(spiral, params.offsetDistance, params.tieBreakMode),
+      buildTrackedLineStartSpecs(spiral, params.offsetDistance, params.traceMode),
       {
         minX: 0,
         minY: 0,
