@@ -521,6 +521,7 @@ export function SketchWorkbench({
   const resetParamsButtonRef = useRef<HTMLButtonElement | null>(null);
   const [confirmResetPlotGarden, setConfirmResetPlotGarden] = useState(false);
   const resetPlotGardenButtonRef = useRef<HTMLButtonElement | null>(null);
+  const selectedSketchButtonRef = useRef<HTMLButtonElement | null>(null);
   const controlPanelSwapTimeoutRef = useRef<number | null>(null);
   const initialClientRenderSeededRef = useRef(false);
 
@@ -1057,6 +1058,15 @@ export function SketchWorkbench({
     });
   }, [searchTerm]);
 
+  useEffect(() => {
+    const selectedSketchButton = selectedSketchButtonRef.current;
+    if (typeof selectedSketchButton?.scrollIntoView !== "function") return;
+
+    selectedSketchButton.scrollIntoView({
+      block: "nearest",
+    });
+  }, [filteredSketches, selectedSlug]);
+
   const hasSeededJobPlan =
     Boolean(
       initialSeed?.seededJobPlan &&
@@ -1400,6 +1410,7 @@ export function SketchWorkbench({
                     active ? styles.sketchButtonActive : ""
                   }`}
                   key={entry.manifest.slug}
+                  ref={active ? selectedSketchButtonRef : undefined}
                   onClick={() => onSelectSketch(entry.manifest.slug)}
                   type="button"
                 >

@@ -1,13 +1,13 @@
 {
   "slug": "nebulous",
   "title": "Nebulous",
-  "description": "Stacked contour clouds and drifting filaments tuned for a 9x12 portrait page.",
+  "description": "A classic golden ratio spiral anchored at the bottom-left corner and fitted to the padded page bounds.",
   "tags": [
-    "featured",
-    "contours",
-    "portrait"
+    "geometry",
+    "spiral",
+    "golden-ratio"
   ],
-  "order": 4,
+  "order": -1,
   "thumbnail": "thumbnail.png",
   "className": "Nebulous"
 }

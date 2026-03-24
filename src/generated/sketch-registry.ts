@@ -2,10 +2,10 @@
 
 import type { SketchManifest } from "@/lib/sketch-core/manifestSchema";
 import type { PlotterSketch } from "@/lib/sketch-core/PlotterSketch";
+import Nebulous from "@/sketches/nebulous/Nebulous";
 import InsetSquare from "@/sketches/inset-square/InsetSquare";
 import LayeredWaves from "@/sketches/layered-waves/LayeredWaves";
 import AuroraTopography from "@/sketches/aurora-topography/AuroraTopography";
-import Nebulous from "@/sketches/nebulous/Nebulous";
 
 export type SketchConstructor = new () => PlotterSketch;
 
@@ -15,6 +15,21 @@ export interface SketchRegistryEntry {
 }
 
 const manifest1: SketchManifest =
+  {
+    "slug": "nebulous",
+    "title": "Nebulous",
+    "description": "A classic golden ratio spiral anchored at the bottom-left corner and fitted to the padded page bounds.",
+    "tags": [
+      "geometry",
+      "spiral",
+      "golden-ratio"
+    ],
+    "order": -1,
+    "thumbnail": "thumbnail.png",
+    "className": "Nebulous"
+  };
+
+const manifest2: SketchManifest =
   {
     "slug": "inset-square",
     "title": "Inset Square Study",
@@ -28,7 +43,7 @@ const manifest1: SketchManifest =
     "className": "InsetSquare"
   };
 
-const manifest2: SketchManifest =
+const manifest3: SketchManifest =
   {
     "slug": "layered-waves",
     "title": "Layered Waves",
@@ -42,7 +57,7 @@ const manifest2: SketchManifest =
     "className": "LayeredWaves"
   };
 
-const manifest3: SketchManifest =
+const manifest4: SketchManifest =
   {
     "slug": "aurora-topography",
     "title": "Aurora Topography",
@@ -57,26 +72,11 @@ const manifest3: SketchManifest =
     "className": "AuroraTopography"
   };
 
-const manifest4: SketchManifest =
-  {
-    "slug": "nebulous",
-    "title": "Nebulous",
-    "description": "Stacked contour clouds and drifting filaments tuned for a 9x12 portrait page.",
-    "tags": [
-      "featured",
-      "contours",
-      "portrait"
-    ],
-    "order": 4,
-    "thumbnail": "thumbnail.png",
-    "className": "Nebulous"
-  };
-
 export const sketchRegistry: SketchRegistryEntry[] = [
-  { manifest: manifest1, Sketch: InsetSquare },
-  { manifest: manifest2, Sketch: LayeredWaves },
-  { manifest: manifest3, Sketch: AuroraTopography },
-  { manifest: manifest4, Sketch: Nebulous },
+  { manifest: manifest1, Sketch: Nebulous },
+  { manifest: manifest2, Sketch: InsetSquare },
+  { manifest: manifest3, Sketch: LayeredWaves },
+  { manifest: manifest4, Sketch: AuroraTopography },
 ];
 
 export const sketchRegistryBySlug = Object.fromEntries(

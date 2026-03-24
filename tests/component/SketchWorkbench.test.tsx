@@ -294,6 +294,38 @@ describe("SketchWorkbench", () => {
     });
   });
 
+  it("scrolls the selected sketch into view on initial render", async () => {
+    const scrolledElements: HTMLElement[] = [];
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    const scrollIntoView = vi.fn(function (this: HTMLElement) {
+      scrolledElements.push(this);
+    });
+
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+
+    try {
+      render(<SketchWorkbench initialSlug="layered-waves" />);
+
+      await waitFor(() => {
+        expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+      });
+
+      expect(scrolledElements).toContain(
+        screen.getByRole("button", { name: /Layered Waves/i }),
+      );
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+        configurable: true,
+        writable: true,
+        value: originalScrollIntoView,
+      });
+    }
+  });
+
   it("persists panel section state to localStorage", async () => {
     render(<SketchWorkbench initialSlug="inset-square" />);
     fireEvent.click(screen.getByRole("button", { name: "Collapse Sketches section" }));
