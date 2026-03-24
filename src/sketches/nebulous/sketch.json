@@ -1,0 +1,13 @@
+{
+  "slug": "nebulous",
+  "title": "Nebulous",
+  "description": "Stacked contour clouds and drifting filaments tuned for a 9x12 portrait page.",
+  "tags": [
+    "featured",
+    "contours",
+    "portrait"
+  ],
+  "order": 4,
+  "thumbnail": "thumbnail.png",
+  "className": "Nebulous"
+}

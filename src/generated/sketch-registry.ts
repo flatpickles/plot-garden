@@ -5,6 +5,7 @@ import type { PlotterSketch } from "@/lib/sketch-core/PlotterSketch";
 import InsetSquare from "@/sketches/inset-square/InsetSquare";
 import LayeredWaves from "@/sketches/layered-waves/LayeredWaves";
 import AuroraTopography from "@/sketches/aurora-topography/AuroraTopography";
+import Nebulous from "@/sketches/nebulous/Nebulous";
 
 export type SketchConstructor = new () => PlotterSketch;
 
@@ -56,10 +57,26 @@ const manifest3: SketchManifest =
     "className": "AuroraTopography"
   };
 
+const manifest4: SketchManifest =
+  {
+    "slug": "nebulous",
+    "title": "Nebulous",
+    "description": "Stacked contour clouds and drifting filaments tuned for a 9x12 portrait page.",
+    "tags": [
+      "featured",
+      "contours",
+      "portrait"
+    ],
+    "order": 4,
+    "thumbnail": "thumbnail.png",
+    "className": "Nebulous"
+  };
+
 export const sketchRegistry: SketchRegistryEntry[] = [
   { manifest: manifest1, Sketch: InsetSquare },
   { manifest: manifest2, Sketch: LayeredWaves },
   { manifest: manifest3, Sketch: AuroraTopography },
+  { manifest: manifest4, Sketch: Nebulous },
 ];
 
 export const sketchRegistryBySlug = Object.fromEntries(
