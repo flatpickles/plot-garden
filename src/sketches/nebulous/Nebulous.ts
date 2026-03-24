@@ -179,6 +179,16 @@ function buildGoldenSpiral(
   }));
 }
 
+function buildImplicitBorder(context: SketchRenderContext): Polyline {
+  return [
+    { x: 0, y: 0 },
+    { x: context.width, y: 0 },
+    { x: context.width, y: context.height },
+    { x: 0, y: context.height },
+    { x: 0, y: 0 },
+  ];
+}
+
 function buildTrackedLineStartSpecs(
   spiral: Polyline,
   offsetDistance: number,
@@ -194,6 +204,7 @@ function buildTrackedLineStartSpecs(
         y: spiralStart.y - offsetDistance,
       },
       offsetDistance,
+      preferredOwnerIndex: 0,
       preferredSide: "auto-inward",
       traceMode,
     },
@@ -221,8 +232,9 @@ export default class Nebulous extends PlotterSketch<typeof schema> {
   ): GeometrySketchOutput {
     const spiralDepth = Math.max(2, Math.floor(params.spiralDepth));
     const spiral = buildGoldenSpiral(params.edgePadding, spiralDepth, context);
+    const implicitBorder = buildImplicitBorder(context);
     const tracedLines = traceOffsetLinesSequentially(
-      [spiral],
+      [spiral, implicitBorder],
       buildTrackedLineStartSpecs(spiral, params.offsetDistance, params.traceMode),
       {
         minX: 0,

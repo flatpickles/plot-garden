@@ -13,6 +13,7 @@ export type TraceBounds = {
 export type OffsetTraceStartSpec = {
   startPoint: Point;
   offsetDistance: number;
+  preferredOwnerIndex?: number;
   preferredSide: OffsetTraceSidePreference;
   traceMode: TraceMode;
 };
@@ -407,15 +408,18 @@ function findEarliestBreachPoint(
   let low = 0;
   let high: number | null = null;
   let previousT = 0;
+  let previousDistance = pointToCompetingDistance(currentPoint, owners, activeState);
 
   for (const sampleT of DISTANCE_SAMPLES) {
     const samplePoint = interpolate(currentPoint, nextPoint, sampleT);
-    if (pointToCompetingDistance(samplePoint, owners, activeState) <= threshold) {
+    const sampleDistance = pointToCompetingDistance(samplePoint, owners, activeState);
+    if (previousDistance > threshold && sampleDistance <= threshold) {
       low = previousT;
       high = sampleT;
       break;
     }
     previousT = sampleT;
+    previousDistance = sampleDistance;
   }
 
   if (high === null) {
@@ -423,14 +427,15 @@ function findEarliestBreachPoint(
   }
 
   let upper = high;
+  let lower = low;
 
   for (let index = 0; index < BINARY_SEARCH_STEPS; index += 1) {
-    const mid = (low + upper) / 2;
+    const mid = (lower + upper) / 2;
     const midPoint = interpolate(currentPoint, nextPoint, mid);
     if (pointToCompetingDistance(midPoint, owners, activeState) <= threshold) {
       upper = mid;
     } else {
-      low = mid;
+      lower = mid;
     }
   }
 
@@ -631,7 +636,7 @@ function findInitialState(
     startSpec.preferredSide === "left" || startSpec.preferredSide === "right"
       ? startSpec.preferredSide
       : undefined;
-  const candidates = clusterTrackProjections(
+  const baseCandidates = clusterTrackProjections(
     collectRawTrackProjections(
       owners,
       startSpec.startPoint,
@@ -639,13 +644,23 @@ function findInitialState(
       trackTolerance,
       preferredSide ? { preferredSide } : undefined,
     ),
-  )
-    .filter(
-      (candidate) =>
-        advanceAlongTrack(candidate.track, candidate.position, stepLength, candidate.direction) !==
-        null,
-    )
-    .sort((a, b) => a.distance - b.distance);
+  ).filter(
+    (candidate) =>
+      advanceAlongTrack(candidate.track, candidate.position, stepLength, candidate.direction) !==
+      null,
+  );
+
+  const candidates =
+    startSpec.preferredOwnerIndex === undefined
+      ? baseCandidates
+      : (() => {
+          const preferred = baseCandidates.filter(
+            (candidate) => candidate.track.ownerIndex === startSpec.preferredOwnerIndex,
+          );
+          return preferred.length > 0 ? preferred : baseCandidates;
+        })();
+
+  candidates.sort((a, b) => a.distance - b.distance);
 
   const selected = candidates[0];
   if (!selected) return null;

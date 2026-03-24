@@ -18,10 +18,12 @@ const BOUNDS: TraceBounds = {
 function buildStartSpec(
   startPoint: { x: number; y: number },
   traceMode: OffsetTraceStartSpec["traceMode"] = "turn-on-breach",
+  preferredOwnerIndex?: number,
 ): OffsetTraceStartSpec {
   return {
     startPoint,
     offsetDistance: 2,
+    ...(preferredOwnerIndex === undefined ? {} : { preferredOwnerIndex }),
     preferredSide: "left",
     traceMode,
   };
@@ -167,5 +169,50 @@ describe("offsetTrace", () => {
     expect(traced).toHaveLength(2);
     expect(countPolylineIntersections(traced[1] ?? [], traced[0] ?? [])).toBe(0);
     expect((traced[1] ?? []).some((point) => point.x <= 2.1 && point.y > 4.5)).toBe(true);
+  });
+
+  it("does not treat an already-coincident competing line as an immediate breach", () => {
+    const base: Polyline[] = [
+      [
+        { x: 0, y: 0 },
+        { x: 8, y: 0 },
+      ],
+      [
+        { x: -1, y: -1 },
+        { x: 9, y: -1 },
+        { x: 9, y: 3 },
+        { x: -1, y: 3 },
+        { x: -1, y: -1 },
+      ],
+    ];
+
+    const line = traceOffsetLine(base, buildStartSpec({ x: 0, y: 2 }), BOUNDS);
+
+    expect(line).not.toBeNull();
+    expect(line?.length).toBeGreaterThan(1);
+    expect(countPolylineIntersections(line ?? [], base[1] ?? [])).toBe(0);
+  });
+
+  it("can bind the initial state to a specific owner when tracks overlap at the seed", () => {
+    const base: Polyline[] = [
+      [
+        { x: 0, y: 0 },
+        { x: 8, y: 0 },
+      ],
+      [
+        { x: 2, y: 0 },
+        { x: 2, y: 8 },
+      ],
+    ];
+
+    const horizontal = traceOffsetLine(base, buildStartSpec({ x: 0, y: 2 }, "turn-on-breach", 0), BOUNDS);
+    const vertical = traceOffsetLine(base, buildStartSpec({ x: 0, y: 2 }, "turn-on-breach", 1), BOUNDS);
+
+    expect(horizontal).not.toBeNull();
+    expect(vertical).not.toBeNull();
+    expect(horizontal?.[1]?.x).toBeGreaterThan(0.1);
+    expect(horizontal?.[1]?.y).toBeCloseTo(2, 2);
+    expect(vertical?.[1]?.x).toBeCloseTo(0, 2);
+    expect(Math.abs((vertical?.[1]?.y ?? 0) - 2)).toBeGreaterThan(0.1);
   });
 });

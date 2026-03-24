@@ -80,6 +80,16 @@ function countPolylineIntersections(lineA: Polyline, lineB: Polyline, skipNearby
   return count;
 }
 
+function buildImplicitBorder(width: number, height: number): Polyline {
+  return [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height },
+    { x: 0, y: 0 },
+  ];
+}
+
 describe("Nebulous", () => {
   it("renders a spiral layer and one tracked offset layer without crossings", async () => {
     const sketch = new Nebulous();
@@ -118,7 +128,12 @@ describe("Nebulous", () => {
       expect(pointToPolylineDistance(point, spiral ?? [])).toBeCloseTo(params.offsetDistance, 1);
     }
 
+    const implicitBorder = buildImplicitBorder(8, 10);
+    expect(pointToPolylineDistance(tracked?.[10] ?? trackedStart ?? { x: 0, y: 0 }, implicitBorder)).toBeGreaterThan(
+      params.offsetDistance,
+    );
     expect(countPolylineIntersections(tracked ?? [], spiral ?? [])).toBe(0);
+    expect(countPolylineIntersections(tracked ?? [], implicitBorder)).toBe(0);
     expect(countPolylineIntersections(tracked ?? [], tracked ?? [], true)).toBe(0);
   });
 
@@ -135,9 +150,11 @@ describe("Nebulous", () => {
 
     const spiral = output.layers[0]?.polylines[0] ?? [];
     const tracked = output.layers[1]?.polylines[0] ?? [];
+    const implicitBorder = buildImplicitBorder(8, 10);
 
     expect(tracked.length).toBeGreaterThan(1);
     expect(countPolylineIntersections(tracked, spiral)).toBe(0);
+    expect(countPolylineIntersections(tracked, implicitBorder)).toBe(0);
     expect(countPolylineIntersections(tracked, tracked, true)).toBe(0);
   });
 });
